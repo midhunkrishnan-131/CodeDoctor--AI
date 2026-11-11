@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeDoctor AI - Intelligent Code Debugging & Logic Diagnosis</title>
+  <meta name="description" content="AI-powered online coding, debugging, and logic diagnosis platform featuring dual AI modes, Python execution, and deep error analysis." />
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Monaco Editor CDN loader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+
+  <!-- Separate CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app" class="app-container">
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="nav-left">
+        <div class="brand-group" id="btn-brand">
+          <div class="brand-logo">
+            <i data-lucide="stethoscope" class="brand-icon"></i>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">CodeDoctor <span class="accent-cyan">AI</span></span>
+            <span class="brand-badge">IDE</span>
+          </div>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <div class="badge-pill sandbox-pill" title="Python isolated subprocess execution sandbox">
+          <i data-lucide="shield-check" class="text-emerald"></i>
+          <span>Python 3.10 Sandbox</span>
+        </div>
+
+        <div class="badge-pill model-pill" id="nav-model-pill" title="Click to configure AI Engine or switch models">
+          <i data-lucide="sparkles" class="text-purple"></i>
+          <span id="nav-active-model-name">Qwen 3.8 27B</span>
+          <span class="status-dot dot-emerald" id="nav-api-indicator" title="Groq API Active"></span>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <button type="button" class="btn btn-nav" id="btn-open-challenges" title="Load pre-built buggy code challenges">
+          <i data-lucide="book-open" class="text-cyan"></i>
+          <span class="btn-text">Challenges</span>
+        </button>
+
+        <button type="button" class="btn btn-nav" id="btn-open-history" title="View diagnosis session history">
+          <i data-lucide="history" class="text-purple"></i>
+          <span class="btn-text">History</span>
+          <span class="counter-badge" id="history-counter">0</span>
+        </button>
+
+        <button type="button" class="btn btn-nav" id="btn-open-settings" title="Configure API keys and execution settings">
+          <i data-lucide="settings" class="text-slate"></i>
+          <span class="btn-text">Settings</span>
+        </button>
+
+        <button type="button" class="btn btn-nav btn-icon-only" id="btn-open-help" title="CodeDoctor AI Guide & Architecture">
+          <i data-lucide="help-circle" class="text-slate"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main class="main-workspace">
+
+      <!-- Problem Description Panel -->
+      <section class="panel problem-panel">
+        <div class="panel-header problem-header">
+          <div class="header-left">
+            <div class="icon-box icon-indigo">
+              <i data-lucide="file-text"></i>
+            </div>
+            <label for="problem-description-input" class="panel-title">Programming Problem / Task</label>
+          </div>
+          <div class="header-right">
+            <button type="button" class="btn-link text-cyan" id="btn-load-example-problem">
+              <i data-lucide="sparkles"></i>
+              <span>Example</span>
+            </button>
+            <button type="button" class="btn-link text-slate" id="btn-clear-problem">
+              <span>Clear</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="problem-input-container">
+          <textarea
+            id="problem-description-input"
+            rows="3"
+            placeholder="Enter your programming question or assignment prompt here..."
+          ></textarea>
+          <div class="char-count" id="problem-char-count">0 chars</div>
+        </div>
+      </section>
+
+      <!-- 2-Column Responsive Workspace -->
+      <div class="workspace-grid">
+
+        <!-- Left Column: Code Editor & Execution Panel -->
+        <div class="workspace-left-column">
+
+          <!-- Monaco Python Code Editor Panel -->
+          <section class="panel editor-panel">
+            <div class="panel-header editor-header">
+              <div class="header-left">
+                <i data-lucide="file-code" class="text-indigo"></i>
+                <span class="filename">solution.py</span>
+                <span class="lang-tag">Python 3</span>
+              </div>
+
+              <div class="header-right editor-tools">
+                <div class="font-controls" title="Adjust font size">
+                  <button type="button" class="btn-tool" id="btn-font-dec" title="Decrease font size">-</button>
+                  <span id="font-size-label" class="font-label">14px</span>
+                  <button type="button" class="btn-tool" id="btn-font-inc" title="Increase font size">+</button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <button type="button" class="btn-tool" id="btn-insert-debug" title="Inject debug print statement">
+                  <i data-lucide="terminal"></i>
+                  <span class="btn-tool-label">Debug Print</span>
+                </button>
+
+                <button type="button" class="btn-tool" id="btn-reset-code" title="Reset starter code">
+                  <i data-lucide="rotate-ccw"></i>
+                  <span class="btn-tool-label">Reset</span>
+                </button>
+
+                <button type="button" class="btn-tool" id="btn-clear-code" title="Clear editor">
+                  <i data-lucide="trash-2"></i>
+                </button>
+
+                <button type="button" class="btn-tool" id="btn-copy-code" title="Copy code">
+                  <i data-lucide="copy" id="icon-copy-code"></i>
+                </button>
+
+                <button type="button" class="btn-tool" id="btn-download-code" title="Download solution.py">
+                  <i data-lucide="download"></i>
+                </button>
+
+                <button type="button" class="btn-tool" id="btn-theme-toggle" title="Toggle Light / Dark theme">
+                  <i data-lucide="sun" id="icon-theme"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Code Editor Container (Monaco Editor & Textarea Fallback) -->
+            <div class="editor-body">
+              <div id="monaco-editor" class="monaco-container"></div>
+              <textarea id="code-fallback-editor" class="code-textarea hidden" spellcheck="false"></textarea>
+            </div>
+
+            <!-- Editor Footer -->
+            <div class="editor-footer">
+              <div class="footer-left">
+                <span class="shortcut-tip"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to Run Code</span>
+              </div>
+              <div class="footer-right">
+                <button type="button" class="btn btn-primary btn-run" id="btn-run-code">
+                  <i data-lucide="play" class="btn-icon"></i>
+                  <span>Run Code</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Execution Terminal Panel -->
+          <section class="panel terminal-panel">
+            <div class="panel-header terminal-header">
+              <div class="header-left">
+                <i data-lucide="terminal" class="text-cyan"></i>
+                <span class="panel-title">Execution Terminal</span>
+
+                <!-- Terminal Status Badge -->
+                <span class="terminal-status-badge status-idle" id="terminal-status-badge">
+                  <span>Idle</span>
+                </span>
+
+                <!-- Execution Time Indicator -->
+                <span class="exec-time hidden" id="exec-time-display">
+                  <i data-lucide="clock"></i>
+                  <span id="exec-time-val">0.0 ms</span>
+                </span>
+              </div>
+
+              <div class="header-right">
+                <!-- Terminal Tabs -->
+                <div class="tab-group">
+                  <button type="button" class="tab-btn active" id="tab-btn-output">Console Output</button>
+                  <button type="button" class="tab-btn" id="tab-btn-stdin">Standard Input (stdin)</button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <button type="button" class="btn-tool" id="btn-copy-terminal" title="Copy output">
+                  <i data-lucide="copy" id="icon-copy-terminal"></i>
+                </button>
+
+                <button type="button" class="btn-tool" id="btn-clear-terminal" title="Clear terminal">
+                  <i data-lucide="trash-2"></i>
+                </button>
+
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-stop-code" disabled title="Stop execution">
+                  <i data-lucide="square" class="btn-icon"></i>
+                  <span>Stop</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Terminal Content Area -->
+            <div class="terminal-body">
+              <!-- Console Output Tab -->
+              <div class="terminal-tab-pane active" id="pane-output">
+                <div class="terminal-console" id="terminal-console-output">
+                  <div class="terminal-empty-prompt">
+                    <span class="terminal-prompt-prefix">$</span> python3 solution.py
+                    <div class="text-muted mt-1">Ready. Click "Run Code" or press Ctrl+Enter to execute.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Standard Input (stdin) Tab -->
+              <div class="terminal-tab-pane" id="pane-stdin">
+                <textarea
+                  id="stdin-input"
+                  class="stdin-textarea"
+                  placeholder="Provide stdin inputs for input() or sys.stdin (one input per line)..."
+                ></textarea>
+                <div class="stdin-hint">Passed to Python's sys.stdin during execution.</div>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- Right Column: AI Doctor Panel -->
+        <div class="workspace-right-column">
+          <section class="panel ai-doctor-panel">
+
+            <!-- AI Doctor Panel Header -->
+            <div class="panel-header ai-header">
+              <div class="ai-brand-group">
+                <div class="icon-box icon-purple">
+                  <i data-lucide="stethoscope"></i>
+                </div>
+                <div>
+                  <h2 class="panel-title">AI Doctor Diagnosis</h2>
+                  <div class="ai-meta">
+                    <span id="ai-provider-label">Groq AI</span>
+                    <span>•</span>
+                    <span id="ai-model-label">llama-3.3-70b-versatile</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ai-header-actions">
+                <button type="button" class="btn-tool" id="btn-ai-settings-shortcut" title="Change AI Model or API Key">
+                  <i data-lucide="settings"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Dual Mode Selector Tabs -->
+            <div class="ai-mode-container">
+              <div class="mode-selector">
+                <button type="button" class="mode-tab-btn active" id="mode-tab-complete" data-mode="complete_answer">
+                  <div class="mode-tab-header">
+                    <i data-lucide="code-2" class="text-purple"></i>
+                    <span class="mode-name">Mode A: Complete Answer</span>
+                  </div>
+                  <span class="mode-sub">Full corrected code & root cause</span>
+                </button>
+
+                <button type="button" class="mode-tab-btn" id="mode-tab-logic" data-mode="logic_suggestion">
+                  <div class="mode-tab-header">
+                    <i data-lucide="lightbulb" class="text-amber"></i>
+                    <span class="mode-name">Mode B: Logic Suggestion</span>
+                  </div>
+                  <span class="mode-sub">Socratic hints (no full code)</span>
+                </button>
+              </div>
+
+              <!-- Diagnose Action Button -->
+              <div class="diagnose-trigger-area">
+                <button type="button" class="btn btn-diagnose" id="btn-diagnose">
+                  <i data-lucide="sparkles" class="btn-icon"></i>
+                  <span id="diagnose-btn-text">Diagnose with CodeDoctor AI</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Diagnosis Results View Area -->
+            <div class="ai-results-body" id="ai-results-container">
+
+              <!-- Idle Prompt State -->
+              <div class="ai-idle-state" id="ai-idle-state">
+                <div class="idle-icon-ring">
+                  <i data-lucide="stethoscope" class="idle-icon"></i>
+                </div>
+                <h3>AI Diagnosis Ready</h3>
+                <p>Run your code or click <strong>Diagnose with CodeDoctor AI</strong> to receive an in-depth diagnosis of bugs, logic flaws, and optimizations.</p>
+
+                <div class="idle-feature-list">
+                  <div class="feature-item">
+                    <i data-lucide="check-circle-2" class="text-cyan"></i>
+                    <span>Deep bug category detection & root cause</span>
+                  </div>
+                  <div class="feature-item">
+                    <i data-lucide="check-circle-2" class="text-purple"></i>
+                    <span>Mode A: 1-Click "Apply to Editor" with verified code</span>
+                  </div>
+                  <div class="feature-item">
+                    <i data-lucide="check-circle-2" class="text-amber"></i>
+                    <span>Mode B: Socratic mentor hints for independent learning</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Loading State -->
+              <div class="ai-loading-state hidden" id="ai-loading-state">
+                <div class="spinner-pulse"></div>
+                <h4 id="loading-step-title">Consulting CodeDoctor AI...</h4>
+                <p id="loading-step-sub" class="text-muted">Analyzing source code, execution outputs, and syntax traces</p>
+                <div class="loading-progress-bar">
+                  <div class="loading-progress-fill"></div>
+                </div>
+              </div>
+
+              <!-- Error State -->
+              <div class="ai-error-state hidden" id="ai-error-state">
+                <i data-lucide="alert-triangle" class="text-rose error-large-icon"></i>
+                <h4 id="ai-error-title">Diagnosis Request Failed</h4>
+                <p id="ai-error-msg" class="text-muted">Error contacting diagnosis service.</p>
+                <div class="mt-3">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-error-open-settings">
+                    <i data-lucide="key"></i>
+                    <span>Configure Groq API Key</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Active Diagnosis Output View -->
+              <div class="ai-content-view hidden" id="ai-content-view">
+                <!-- Diagnosis Quick Toolbar -->
+                <div class="diagnosis-toolbar">
+                  <div class="toolbar-left">
+                    <span class="badge-mode-tag" id="active-diagnosis-badge">Mode A: Complete Fix</span>
+                  </div>
+                  <div class="toolbar-right">
+                    <button type="button" class="btn-tool" id="btn-copy-diagnosis" title="Copy full diagnosis">
+                      <i data-lucide="copy" id="icon-copy-diag"></i>
+                      <span>Copy All</span>
+                    </button>
+                    <button type="button" class="btn-tool hidden" id="btn-copy-extracted-code" title="Copy corrected code">
+                      <i data-lucide="code-2"></i>
+                      <span>Copy Code</span>
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm hidden" id="btn-apply-code" title="Apply corrected code directly into the editor">
+                      <i data-lucide="check-circle-2"></i>
+                      <span>Apply to Editor</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Structured Rendered Sections -->
+                <div class="diagnosis-sections-container" id="diagnosis-sections-list"></div>
+              </div>
+
+            </div>
+
+          </section>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Bottom Code Health Bar -->
+    <footer class="code-health-bar">
+      <div class="health-left">
+        <div class="health-title">
+          <i data-lucide="activity" class="text-cyan pulse-icon"></i>
+          <span>Code Health:</span>
+        </div>
+
+        <!-- Syntax Status Badge -->
+        <div class="health-chip" id="health-syntax-chip">
+          <span class="chip-label">Syntax:</span>
+          <span class="chip-val text-slate" id="health-syntax-val">
+            <i data-lucide="help-circle"></i> Unchecked
+          </span>
+        </div>
+
+        <!-- Execution Status Badge -->
+        <div class="health-chip" id="health-exec-chip">
+          <span class="chip-label">Execution:</span>
+          <span class="chip-val text-slate" id="health-exec-val">
+            <i data-lucide="help-circle"></i> Not Run Yet
+          </span>
+        </div>
+
+        <!-- Detected Errors Tags -->
+        <div class="detected-errors-group" id="health-errors-group"></div>
+      </div>
+
+      <div class="health-right">
+        <!-- Quality Tips / Loop Warning -->
+        <div class="health-tips" id="health-tips-text">
+          <i data-lucide="info" class="text-indigo"></i>
+          <span id="health-tips-msg">Click "Run Code" to inspect outputs or test with dual AI diagnosis.</span>
+        </div>
+
+        <!-- Overall Score Badge -->
+        <div class="health-score-badge badge-slate" id="health-score-badge">
+          <i data-lucide="shield-check"></i>
+          <span id="health-score-val">Ready</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- 1. Curated Challenges Modal -->
+    <div class="modal-overlay hidden" id="modal-challenges">
+      <div class="modal-card modal-large">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="icon-box icon-cyan">
+              <i data-lucide="book-open"></i>
+            </div>
+            <div>
+              <h3>Curated Buggy Code Challenges</h3>
+              <p class="modal-subtitle">Test CodeDoctor AI across various common Python bug patterns</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close-modal" data-close-modal="modal-challenges">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="modal-body modal-scrollable" id="challenges-list">
+          <!-- Populated dynamically by script.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Session History Modal -->
+    <div class="modal-overlay hidden" id="modal-history">
+      <div class="modal-card modal-large">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="icon-box icon-purple">
+              <i data-lucide="history"></i>
+            </div>
+            <div>
+              <h3>Diagnosis Session History</h3>
+              <p class="modal-subtitle">SQLite persistent record of past executions and AI diagnoses</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close-modal" data-close-modal="modal-history">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="modal-search-bar">
+          <div class="search-input-wrapper">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" id="history-search-input" placeholder="Search sessions by problem, code, or diagnosis..." />
+          </div>
+        </div>
+
+        <div class="modal-body modal-scrollable" id="history-items-container">
+          <div class="empty-history-notice" id="history-empty-notice">
+            <i data-lucide="history" class="empty-icon"></i>
+            <p>No diagnosis sessions recorded yet.</p>
+            <span class="text-muted">Run code and diagnose with CodeDoctor AI to save records automatically.</span>
+          </div>
+          <div class="history-list" id="history-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Settings Modal -->
+    <div class="modal-overlay hidden" id="modal-settings">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="icon-box icon-indigo">
+              <i data-lucide="settings"></i>
+            </div>
+            <div>
+              <h3>AI Engine & Execution Settings</h3>
+              <p class="modal-subtitle">Configure Groq API key, model choice, and sandbox limits</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close-modal" data-close-modal="modal-settings">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <form id="settings-form" class="modal-body space-y-4">
+          <!-- Backend API Base URL -->
+          <div class="form-group">
+            <label for="setting-backend-url" class="form-label">
+              <span>Backend API Base URL</span>
+            </label>
+            <input
+              type="text"
+              id="setting-backend-url"
+              class="form-input font-mono"
+              placeholder="e.g. http://localhost:8000 or http://localhost:3000 (leave blank for auto-detect)"
+            />
+            <span class="form-hint">FastAPI (port 8000) or Express (port 3000). Leave blank to auto-detect.</span>
+          </div>
+
+          <!-- Groq API Key -->
+          <div class="form-group">
+            <label for="setting-groq-key" class="form-label">
+              <span>Groq API Key</span>
+              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="link-external">
+                <span>Get Free Key</span>
+                <i data-lucide="external-link"></i>
+              </a>
+            </label>
+            <div class="input-password-wrapper">
+              <input
+                type="password"
+                id="setting-groq-key"
+                class="form-input font-mono"
+                placeholder="gsk_..."
+              />
+              <button type="button" class="btn-toggle-eye" id="btn-toggle-groq-eye">
+                <i data-lucide="eye" id="icon-groq-eye"></i>
+              </button>
+            </div>
+            <span class="form-hint">Stored safely in your local browser storage. Never transmitted to third parties.</span>
+          </div>
+
+          <!-- AI Model Selection -->
+          <div class="form-group">
+            <label for="setting-model-select" class="form-label">AI Diagnosis Model</label>
+            <select id="setting-model-select" class="form-select">
+              <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (Recommended: High performance code analysis & fixes)</option>
+              <option value="openai/gpt-oss-120b">GPT OSS 120B (Large reasoning model for complex debugging)</option>
+              <option value="openai/gpt-oss-20b">GPT OSS 20B (Fast response for instant hints)</option>
+              <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Meta Llama 3.3)</option>
+              <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Meta Llama 3.1)</option>
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash (AI Studio fallback)</option>
+            </select>
+          </div>
+
+          <!-- Timeout Slider -->
+          <div class="form-group">
+            <div class="slider-label-row">
+              <label for="setting-timeout" class="form-label">Sandbox Execution Timeout</label>
+              <span class="font-mono text-cyan" id="timeout-display-val">5s</span>
+            </div>
+            <input
+              type="range"
+              id="setting-timeout"
+              min="2"
+              max="15"
+              step="1"
+              value="5"
+              class="form-range"
+            />
+            <span class="form-hint">Terminates infinite loops or prolonged scripts after this duration.</span>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-close-modal="modal-settings">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-settings">
+              <i data-lucide="check"></i>
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 4. Help & Architecture Modal -->
+    <div class="modal-overlay hidden" id="modal-help">
+      <div class="modal-card modal-large">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="icon-box icon-indigo">
+              <i data-lucide="help-circle"></i>
+            </div>
+            <div>
+              <h3>CodeDoctor AI Guide & Architecture</h3>
+              <p class="modal-subtitle">Understanding AI Modes, Execution Sandboxing, and Debugging Workflow</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close-modal" data-close-modal="modal-help">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="modal-body modal-scrollable guide-content">
+          <div class="guide-section">
+            <h4 class="guide-heading">
+              <i data-lucide="sparkles" class="text-purple"></i>
+              <span>Two Core AI Diagnosis Modes</span>
+            </h4>
+            <div class="guide-grid">
+              <div class="guide-card card-purple">
+                <div class="card-top">
+                  <i data-lucide="code-2" class="text-purple"></i>
+                  <strong>Mode A: Complete Answer Mode</strong>
+                </div>
+                <p>Designed when you need the complete fix immediately. Identifies the root cause, categorizes bugs (Off-by-one, ZeroDivision, Recursion, Syntax), generates the complete corrected code with a 1-click <strong>Apply to Editor</strong> button, and provides edge-case test cases.</p>
+              </div>
+
+              <div class="guide-card card-amber">
+                <div class="card-top">
+                  <i data-lucide="lightbulb" class="text-amber"></i>
+                  <strong>Mode B: Logic Suggestion Mode</strong>
+                </div>
+                <p>Socratic mentoring mode. <strong>Strictly prohibits revealing the full solution code</strong>. Instead, it guides you with mental models, logical hints, guiding questions, and step-by-step reasoning so you can solve the bug independently.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="guide-section">
+            <h4 class="guide-heading">
+              <i data-lucide="shield-check" class="text-emerald"></i>
+              <span>Execution Sandbox & Safety</span>
+            </h4>
+            <div class="guide-info-box">
+              <p>User scripts run in an isolated subprocess with active timeout detection (2–15s configurable), standard input stream piping, and microsecond execution time measurements. Standard Python libraries are supported.</p>
+            </div>
+          </div>
+
+          <div class="guide-section">
+            <h4 class="guide-heading">
+              <i data-lucide="terminal" class="text-cyan"></i>
+              <span>Keyboard Shortcuts</span>
+            </h4>
+            <div class="shortcuts-table">
+              <div class="shortcut-row">
+                <span class="keys"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> (or <kbd>Cmd</kbd> + <kbd>Enter</kbd>)</span>
+                <span class="desc">Execute code in sandbox</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="keys"><kbd>Esc</kbd></span>
+                <span class="desc">Close any open modal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-container" id="toast-container"></div>
+
+  </div>
+
+  <!-- Separate JavaScript File -->
+  <script src="script.js"></script>
+</body>
+</html>
+

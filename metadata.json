@@ -1,0 +1,6 @@
+{
+  "name": "CodeDoctor AI",
+  "description": "AI-powered online coding, debugging, and logic diagnosis platform featuring dual AI modes (Complete Answer and Logic Suggestion), real-time Python execution, and deep error analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
