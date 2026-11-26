@@ -1,6 +1,7 @@
 /**
  * CodeDoctor AI - Production Express Server
  */
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
