@@ -582,7 +582,7 @@ function renderCode() {
     return hl(l.slice(0, iss.start)) +
       `<span class="sq">${hl(l.slice(iss.start, iss.end))}</span>` +
       hl(l.slice(iss.end)) +
-      `<span class="ghost">${iss.short}</span>`;
+      `<span class="ghost">${esc(iss.short)}</span>`;
   }).join('\n') + '\n';
   gutter.innerHTML = lines.map((_, i) =>
     `<div data-n="${i + 1}" class="${issues.some(x => x.line === i + 1) ? 'has-err' : ''}">${i + 1}</div>`).join('');
@@ -631,11 +631,12 @@ scroller.addEventListener('mousedown', e => {
 function renderTabs() {
   tabsEl.innerHTML = open.map(n => {
     const bad = diagnose(n, files[n]?.src || '').length;
+    const safe = esc(n);
     return `<div class="tab ${n === active ? 'is-active' : ''}">
-      <button class="tab-main" role="tab" aria-selected="${n === active}" data-open="${n}">
-        ${icon('file')}${n}${bad ? '<span class="mark" title="Problem in this file"></span>' : ''}
+      <button class="tab-main" role="tab" aria-selected="${n === active}" data-open="${safe}">
+        ${icon('file')}${safe}${bad ? '<span class="mark" title="Problem in this file"></span>' : ''}
       </button>
-      ${open.length > 1 ? `<button class="x" data-close="${n}" aria-label="Close ${n}">${icon('x')}</button>` : ''}
+      ${open.length > 1 ? `<button class="x" data-close="${safe}" aria-label="Close ${safe}">${icon('x')}</button>` : ''}
     </div>`;
   }).join('');
 }
@@ -643,8 +644,9 @@ function renderTabs() {
 function renderFiles() {
   fileList.innerHTML = Object.keys(files).map(n => {
     const bad = diagnose(n, files[n]?.src || '').length;
-    return `<li><button class="list-item ${n === active ? 'is-active' : ''}" data-open="${n}">
-      ${icon('file')}${n}${bad ? `<span class="badge" style="margin-left:auto">${bad}</span>` : ''}
+    const safe = esc(n);
+    return `<li><button class="list-item ${n === active ? 'is-active' : ''}" data-open="${safe}">
+      ${icon('file')}${safe}${bad ? `<span class="badge" style="margin-left:auto">${bad}</span>` : ''}
     </button></li>`;
   }).join('');
 }
@@ -925,6 +927,8 @@ function renderStatus() {
     ? `<span class="st-err">${icon('alert')}${total} problem${total > 1 ? 's' : ''}</span>`
     : `<span>${icon('check')}No problems</span>`;
   $('#ctxName').textContent = active; $('#readName').textContent = active;
+  const wsActiveFile = $('#wsActiveFile');
+  if (wsActiveFile) wsActiveFile.textContent = active || 'untitled';
   $('#ctxLines').textContent = (files[active]?.src || '').replace(/\n$/, '').split('\n').length;
 }
 
@@ -982,8 +986,8 @@ function setMode(m) {
   mode = m; hint = 1;
   $$('.mode button').forEach(b => { const on = b.dataset.mode === m; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', on); });
   modeDesc.textContent = m === 'complete'
-    ? 'Finds the bug and hands you corrected code.'
-    : 'Nudges you toward the answer without giving it away.';
+    ? 'Get a clear explanation and fixed code you can use.'
+    : 'Get helpful hints so you can figure it out yourself.';
   renderDoctor();
 }
 
@@ -1234,7 +1238,11 @@ function action(a) {
   if (a === 'toggle-model') return toggleMenu();
   if (a === 'clear-term') { termLog.innerHTML = ''; return; }
   if (a === 'focus-term') { setCp('terminal'); termIn.focus(); return; }
-  if (a === 'toggle-console') { consoleEl.classList.toggle('is-max'); return; }
+  if (a === 'toggle-console') {
+    if (workspaceApp) workspaceApp.classList.toggle('is-console-collapsed');
+    consoleEl.classList.toggle('is-max');
+    return;
+  }
 }
 
 function docAct(a) {
@@ -1292,10 +1300,37 @@ function renderAll() {
   renderChallenge(); renderStatus(); renderDoctor();
 }
 
-/* ---------- home gate ---------- */
+/* ---------- multi-page router ---------- */
+const PAGE_TITLES = {
+  home: 'Home',
+  workspace: 'Workspace',
+  learn: 'Learn',
+  challenges: 'Challenges',
+  history: 'History',
+  templates: 'Templates',
+  snippets: 'Snippets',
+  settings: 'Settings',
+  doctor: 'AI Doctor'
+};
+
+const LEARN_TOPICS = [
+  { id: 'variables', title: 'Variables & types', blurb: 'int, str, list, dict' },
+  { id: 'loops', title: 'Loops', blurb: 'for, while, range' },
+  { id: 'functions', title: 'Functions', blurb: 'def, return, arguments' },
+  { id: 'conditionals', title: 'Conditionals', blurb: 'if / elif / else' },
+  { id: 'errors', title: 'Errors & debugging', blurb: 'Tracebacks and fixes' },
+  { id: 'files', title: 'Working with files', blurb: 'open, read, write' }
+];
+
 let workspaceEntered = false;
 let homeIntentMode = 'create';
+let pendingLearnTopic = '';
 const pendingHomeFiles = [];
+let userSnippets = [];
+try {
+  userSnippets = JSON.parse(localStorage.getItem('codedoctor_user_snippets') || '[]');
+  if (!Array.isArray(userSnippets)) userSnippets = [];
+} catch { userSnippets = []; }
 
 const homeRoot = $('#home');
 const homePrompt = $('#homePrompt');
@@ -1310,11 +1345,38 @@ const homeModelBtn = $('#homeModelBtn');
 const homeModelMenu = $('#homeModelMenu');
 const homeModelLabel = $('#homeModelLabel');
 const workspaceApp = $('#workspaceApp') || $('.app');
+const shellPageTitle = $('#shellPageTitle');
+const shellModelLabel = $('#shellModelLabel');
+const appShell = $('#appShell');
+
+function getRoute() {
+  const raw = (location.hash || '#/home').replace(/^#/, '');
+  const path = raw.split('?')[0].replace(/^\/+/, '') || 'home';
+  const page = path.split('/')[0] || 'home';
+  return PAGE_TITLES[page] ? page : 'home';
+}
+
+function navigate(page, { replace = false } = {}) {
+  const next = PAGE_TITLES[page] ? page : 'home';
+  const hash = '#/' + next;
+  if (replace) location.replace(hash);
+  else if (location.hash !== hash) location.hash = hash;
+  else renderRoute(next);
+}
+
+function setNavOpen(open) {
+  document.body.classList.toggle('nav-open', !!open);
+  const bd = $('#shellNavBackdrop');
+  if (bd) bd.hidden = !open;
+}
 
 function syncModelLabels() {
   const mn = $('#modelName');
   if (mn) mn.textContent = activeModel;
   if (homeModelLabel) homeModelLabel.textContent = activeModel;
+  if (shellModelLabel) shellModelLabel.textContent = activeModel;
+  const settingsModel = $('#settingsModel');
+  if (settingsModel && settingsModel.value !== activeModel) settingsModel.value = activeModel;
   $$('#modelList [data-model]').forEach((b) => b.setAttribute('aria-selected', b.dataset.model === activeModel));
   $$('#homeModelMenu [data-home-model]').forEach((b) => b.setAttribute('aria-selected', b.dataset.homeModel === activeModel));
 }
@@ -1408,7 +1470,6 @@ function seedFromHomeIntent(opts = {}) {
     return;
   }
 
-  // learn — keep a simple readable starter
   Object.keys(files).forEach((k) => { delete files[k]; });
   open.length = 0;
   files['learn.py'] = {
@@ -1426,6 +1487,7 @@ function prepareWorkspaceShell() {
     if (stEnv) stEnv.textContent = 'Demo · Simulated Python';
     if (banner) banner.style.display = 'flex';
     document.body.classList.add('has-demo-banner');
+    if (appShell) appShell.classList.add('has-banner');
     term('<strong>CodeDoctor Demo Environment</strong>');
     term('<span class="dim">Ready to explore.</span>');
     term('<span class="dim">Click Run to try the sample code.</span>');
@@ -1433,6 +1495,7 @@ function prepareWorkspaceShell() {
     if (stEnv) stEnv.textContent = 'Python 3.10 Sandbox';
     if (banner) banner.style.display = 'none';
     document.body.classList.remove('has-demo-banner');
+    if (appShell) appShell.classList.remove('has-banner');
     term('<span class="dim">Python 3.10 sandbox ready. Type</span> python ' + esc(active) + ' <span class="dim">or click Run (Ctrl ↵)</span>');
   }
   ta.value = files[active]?.src || '';
@@ -1440,7 +1503,7 @@ function prepareWorkspaceShell() {
   renderAll();
 }
 
-function enterWorkspace(opts = {}) {
+function openWorkspace(opts = {}) {
   const promptText = (opts.prompt || '').trim();
   const intent = opts.mode || homeIntentMode;
   const via = opts.via || 'prompt';
@@ -1451,6 +1514,8 @@ function enterWorkspace(opts = {}) {
   if (!workspaceEntered) {
     if (via === 'challenges') {
       seedFromHomeIntent({ mode: intent, keepChallenge: true, attached: [] });
+    } else if (via === 'keep') {
+      /* keep current files */
     } else {
       seedFromHomeIntent({ mode: intent, attached: [...pendingHomeFiles] });
     }
@@ -1458,49 +1523,37 @@ function enterWorkspace(opts = {}) {
   } else if (pendingHomeFiles.length) {
     seedFromHomeIntent({ mode: intent, attached: [...pendingHomeFiles] });
     prepareWorkspaceShell();
+  } else if (via === 'challenges') {
+    /* loadChallenge below */
+  } else if (!opts.skipPrepare && via === 'workspace' && !workspaceEntered) {
+    prepareWorkspaceShell();
   }
 
   pendingHomeFiles.length = 0;
   renderHomeAttachments();
   closeHomeMenus();
-
-  document.body.classList.remove('view-home');
-  document.body.classList.add('view-workspace');
-  if (workspaceApp) {
-    workspaceApp.hidden = false;
-    workspaceApp.classList.remove('is-workspace-hidden');
-  }
-  if (homeRoot) {
-    homeRoot.setAttribute('aria-hidden', 'true');
-    const hideHome = () => {
-      homeRoot.hidden = true;
-      homeRoot.style.display = 'none';
-    };
-    // Allow the fade to finish, then fully remove home from the stack.
-    setTimeout(hideHome, 340);
-  }
   workspaceEntered = true;
 
-  if (via === 'challenges') {
+  if (via === 'challenges' && opts.challengeIndex != null) {
+    loadChallenge(opts.challengeIndex);
+  } else if (via === 'challenges') {
     loadChallenge(curChallengeIdx);
   }
 
   if (promptText) {
     let framed = promptText;
-    if (intent === 'create') {
-      framed = `Create / build this for me (complete working code when possible):\n\n${promptText}`;
-    } else if (intent === 'fix') {
-      framed = `Fix this problem and explain the root cause clearly:\n\n${promptText}`;
-    } else if (intent === 'learn') {
-      framed = `Explain this in simple words for a beginner. Guide me step by step:\n\n${promptText}`;
-    }
+    if (intent === 'create') framed = `Create / build this for me (complete working code when possible):\n\n${promptText}`;
+    else if (intent === 'fix') framed = `Fix this problem and explain the root cause clearly:\n\n${promptText}`;
+    else if (intent === 'learn') framed = `Explain this in simple words for a beginner. Guide me step by step:\n\n${promptText}`;
     setTimeout(() => {
       ask(framed);
       if (askBox) askBox.focus({ preventScroll: true });
-    }, 280);
-  } else {
-    setTimeout(() => ta.focus({ preventScroll: true }), 200);
+    }, 220);
+  } else if (opts.focusEditor !== false) {
+    setTimeout(() => ta.focus({ preventScroll: true }), 160);
   }
+
+  navigate('workspace');
 }
 
 function updateHomeSendState() {
@@ -1508,6 +1561,182 @@ function updateHomeSendState() {
   homeSendBtn.disabled = !homePrompt.value.trim() && pendingHomeFiles.length === 0;
 }
 
+function renderLearnPage() {
+  const list = $('#learnTopicList');
+  if (!list) return;
+  list.innerHTML = LEARN_TOPICS.map((t) =>
+    `<button type="button" class="feature-row" data-learn-topic="${esc(t.id)}"><div class="meta"><strong>${esc(t.title)}</strong><span>${esc(t.blurb)}</span></div><span class="tag">Learn</span></button>`
+  ).join('');
+  if (pendingLearnTopic) {
+    const q = $('#learnQuery');
+    const topic = LEARN_TOPICS.find((t) => t.id === pendingLearnTopic);
+    if (q && topic) q.value = topic.title;
+  }
+}
+
+async function explainLearn(text) {
+  const box = $('#learnExplain');
+  if (!box || !text.trim()) return;
+  setMode('logic');
+  box.innerHTML = '<span class="dim">Thinking…</span>';
+  const framed = `Explain this in simple words for a beginner. Use short steps and a tiny Python example:\n\n${text.trim()}`;
+  const html = await callAiDoctor(framed);
+  box.innerHTML = html;
+}
+
+function renderChallengesPage() {
+  const list = $('#challengesList');
+  if (!list) return;
+  list.innerHTML = CHALLENGES.map((c, i) =>
+    `<button type="button" class="feature-row" data-open-challenge="${i}"><div class="meta"><strong>${esc(c.title)}</strong><span>Challenge ${String(i + 1).padStart(2, '0')}</span></div><span class="tag">${esc(c.diff || 'Practice')}</span></button>`
+  ).join('');
+}
+
+function renderTemplatesPage() {
+  const list = $('#pageTemplateList');
+  if (!list) return;
+  list.innerHTML = TEMPLATES.map((t, i) =>
+    `<button type="button" class="feature-row" data-use-template="${i}"><div class="meta"><strong>${esc(t.name)}</strong><span>${esc(t.desc)}</span></div><span class="tag">Use</span></button>`
+  ).join('');
+}
+
+function allSnippets() {
+  return [
+    ...SNIPPETS.map((s, i) => ({ ...s, id: 'builtin-' + i, builtin: true })),
+    ...userSnippets.map((s, i) => ({ ...s, id: 'user-' + i, builtin: false, userIndex: i }))
+  ];
+}
+
+function saveUserSnippets() {
+  localStorage.setItem('codedoctor_user_snippets', JSON.stringify(userSnippets));
+}
+
+function renderSnippetsPage(filter = '') {
+  const list = $('#pageSnippetList');
+  if (!list) return;
+  const q = filter.trim().toLowerCase();
+  const items = allSnippets().filter((s) => !q || s.name.toLowerCase().includes(q) || (s.key || '').toLowerCase().includes(q));
+  list.innerHTML = items.map((s) =>
+    `<div class="feature-row" style="cursor:default"><div class="meta"><strong>${esc(s.name)}</strong><span>${esc(s.key || (s.builtin ? 'built-in' : 'saved'))}</span></div>
+      <button type="button" class="btn-quiet" data-insert-snippet="${esc(s.id)}">Insert</button>
+      ${s.builtin ? '' : `<button type="button" class="btn-quiet" data-delete-snippet="${s.userIndex}">Delete</button>`}
+    </div>`
+  ).join('') || '<p class="lead">No snippets yet.</p>';
+}
+
+function renderHistoryPage(filter = '') {
+  const list = $('#pageHistoryList');
+  if (!list) return;
+  const q = filter.trim().toLowerCase();
+  const items = (historyCache || []).filter((h) => {
+    const blob = `${h.problem_description || ''} ${h.source_code || ''} ${h.ai_diagnosis || ''}`.toLowerCase();
+    return !q || blob.includes(q);
+  });
+  if (!items.length) {
+    list.innerHTML = `<p class="lead">${isDemoMode() ? 'History needs a connected backend. Demo mode keeps sessions offline.' : 'No diagnosis history stored yet.'}</p>`;
+    return;
+  }
+  list.innerHTML = items.map((h, i) => {
+    const idx = historyCache.indexOf(h);
+    return `<button type="button" class="feature-row" data-restore-history="${idx}"><div class="meta"><strong>${esc((h.problem_description || 'Session').slice(0, 80))}</strong><span>${esc(h.model_name || h.provider || '')} · ${esc(h.created_at || '')}</span></div><span class="tag">Open</span></button>`;
+  }).join('');
+}
+
+function renderSettingsPage() {
+  const modelSel = $('#settingsModel');
+  const apiInput = $('#settingsApiBase');
+  const timeoutInput = $('#settingsTimeout');
+  if (modelSel) {
+    const opts = $$('#modelList [data-model]').map((b) => b.dataset.model);
+    const models = opts.length ? opts : [activeModel];
+    modelSel.innerHTML = models.map((m) => `<option value="${esc(m)}" ${m === activeModel ? 'selected' : ''}>${esc(m)}</option>`).join('');
+  }
+  if (apiInput) {
+    try { apiInput.value = localStorage.getItem('codedoctor_api_base') ?? ''; } catch { apiInput.value = ''; }
+  }
+  if (timeoutInput) {
+    try { timeoutInput.value = localStorage.getItem('codedoctor_timeout') || '5'; } catch { timeoutInput.value = '5'; }
+  }
+}
+
+function renderDoctorPage() {
+  /* thread already live via doctorPageThread + handlers */
+}
+
+async function renderRoute(page) {
+  const route = PAGE_TITLES[page] ? page : 'home';
+  document.body.dataset.page = route;
+  document.body.classList.add('app-shell');
+  document.body.classList.remove('view-home', 'view-workspace');
+  if (shellPageTitle) shellPageTitle.textContent = PAGE_TITLES[route];
+
+  $$('.page').forEach((el) => {
+    const on = el.dataset.page === route;
+    el.classList.toggle('is-active', on);
+    el.hidden = !on;
+  });
+  $$('.shell-nav-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.route === route));
+  $$('.nav-item[data-route]').forEach((b) => b.classList.toggle('is-active', b.dataset.route === route));
+  setNavOpen(false);
+
+  if (route === 'workspace') {
+    if (!workspaceEntered) {
+      prepareWorkspaceShell();
+      workspaceEntered = true;
+    }
+    if (workspaceApp) {
+      workspaceApp.hidden = false;
+      workspaceApp.classList.remove('is-workspace-hidden');
+    }
+  }
+
+  if (route === 'learn') {
+    renderLearnPage();
+    if (pendingLearnTopic) {
+      const topic = LEARN_TOPICS.find((t) => t.id === pendingLearnTopic);
+      pendingLearnTopic = '';
+      if (topic) await explainLearn(topic.title + ' — ' + topic.blurb);
+    }
+  }
+  if (route === 'challenges') renderChallengesPage();
+  if (route === 'templates') renderTemplatesPage();
+  if (route === 'snippets') renderSnippetsPage(($('#snippetSearch') || {}).value || '');
+  if (route === 'history') {
+    await loadHistory();
+    renderHistoryPage(($('#historySearch') || {}).value || '');
+  }
+  if (route === 'settings') renderSettingsPage();
+  if (route === 'doctor') renderDoctorPage();
+  if (route === 'home' && homePrompt) homePrompt.focus({ preventScroll: true });
+}
+
+function handleHomePromptSubmit() {
+  const text = (homePrompt && homePrompt.value) || '';
+  if (!text.trim() && !pendingHomeFiles.length) return;
+  if (homeSendBtn) homeSendBtn.classList.add('is-loading');
+
+  if (homeIntentMode === 'learn') {
+    pendingLearnTopic = '';
+    sessionStorage.setItem('codedoctor_learn_q', text.trim());
+    navigate('learn');
+    setTimeout(() => {
+      const q = $('#learnQuery');
+      if (q) q.value = text.trim();
+      explainLearn(text.trim());
+    }, 50);
+  } else {
+    openWorkspace({ prompt: text, mode: homeIntentMode, via: 'prompt' });
+  }
+
+  if (homePrompt) {
+    homePrompt.value = '';
+    homePrompt.style.height = 'auto';
+  }
+  updateHomeSendState();
+  if (homeSendBtn) homeSendBtn.classList.remove('is-loading');
+}
+
+/* home prompt listeners */
 if (homePrompt) {
   homePrompt.addEventListener('input', () => {
     homePrompt.style.height = 'auto';
@@ -1525,16 +1754,7 @@ if (homePrompt) {
 if (homePromptForm) {
   homePromptForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const text = (homePrompt && homePrompt.value) || '';
-    if (!text.trim() && !pendingHomeFiles.length) return;
-    if (homeSendBtn) homeSendBtn.classList.add('is-loading');
-    enterWorkspace({ prompt: text, mode: homeIntentMode, via: 'prompt' });
-    if (homePrompt) {
-      homePrompt.value = '';
-      homePrompt.style.height = 'auto';
-    }
-    updateHomeSendState();
-    if (homeSendBtn) homeSendBtn.classList.remove('is-loading');
+    handleHomePromptSubmit();
   });
 }
 
@@ -1608,21 +1828,6 @@ if (homeModelMenu) {
   });
 }
 
-if (homeRoot) {
-  homeRoot.addEventListener('click', (e) => {
-    const nav = e.target.closest('[data-home-nav]');
-    if (nav) {
-      const dest = nav.dataset.homeNav;
-      if (dest === 'challenges') enterWorkspace({ via: 'challenges', mode: homeIntentMode });
-      else enterWorkspace({ via: 'workspace', mode: homeIntentMode });
-      return;
-    }
-    if (!e.target.closest('.home-mode-menu, .home-model-menu, #homeModeBtn, #homeModelBtn')) {
-      closeHomeMenus();
-    }
-  });
-}
-
 const homeNewBtn = $('#homeNewBtn');
 if (homeNewBtn) {
   homeNewBtn.addEventListener('click', (e) => {
@@ -1636,8 +1841,255 @@ if (homeNewBtn) {
     renderHomeAttachments();
     updateHomeSendState();
     setHomeIntentMode('create');
+    navigate('home');
   });
 }
+
+/* global route clicks */
+document.addEventListener('click', (e) => {
+  const routeEl = e.target.closest('[data-route]');
+  if (routeEl) {
+    e.preventDefault();
+    const route = routeEl.dataset.route;
+    if (route === 'workspace') openWorkspace({ via: 'keep', mode: homeIntentMode, focusEditor: true });
+    else navigate(route);
+    return;
+  }
+
+  const learnTopic = e.target.closest('[data-learn-topic]');
+  if (learnTopic) {
+    const id = learnTopic.dataset.learnTopic;
+    const topic = LEARN_TOPICS.find((t) => t.id === id);
+    navigate('learn');
+    setTimeout(() => {
+      const q = $('#learnQuery');
+      if (q && topic) q.value = topic.title;
+      if (topic) explainLearn(topic.title + ' — ' + topic.blurb);
+    }, 40);
+    return;
+  }
+
+  const ch = e.target.closest('[data-open-challenge]');
+  if (ch) {
+    openWorkspace({ via: 'challenges', challengeIndex: Number(ch.dataset.openChallenge), mode: 'fix' });
+    return;
+  }
+
+  const tmpl = e.target.closest('[data-use-template]');
+  if (tmpl) {
+    const t = TEMPLATES[Number(tmpl.dataset.useTemplate)];
+    if (t) {
+      openWorkspace({ via: 'keep', mode: 'create', focusEditor: false });
+      newFile(t.src);
+    }
+    return;
+  }
+
+  const ins = e.target.closest('[data-insert-snippet]');
+  if (ins) {
+    const id = ins.dataset.insertSnippet;
+    const snip = allSnippets().find((s) => s.id === id);
+    openWorkspace({ via: 'keep', focusEditor: true });
+    setTimeout(() => {
+      if (snip) insertText(snip.code || '');
+    }, 120);
+    return;
+  }
+
+  const del = e.target.closest('[data-delete-snippet]');
+  if (del) {
+    userSnippets.splice(Number(del.dataset.deleteSnippet), 1);
+    saveUserSnippets();
+    renderSnippetsPage(($('#snippetSearch') || {}).value || '');
+    return;
+  }
+
+  const hist = e.target.closest('[data-restore-history]');
+  if (hist) {
+    restoreHistory(Number(hist.dataset.restoreHistory));
+    navigate('workspace');
+    return;
+  }
+
+  const docMode = e.target.closest('[data-doc-mode]');
+  if (docMode) {
+    setMode(docMode.dataset.docMode);
+    return;
+  }
+
+  if (!e.target.closest('.home-mode-menu, .home-model-menu, #homeModeBtn, #homeModelBtn')) {
+    closeHomeMenus();
+  }
+});
+
+$('#learnAskBtn')?.addEventListener('click', () => {
+  const q = $('#learnQuery');
+  explainLearn((q && q.value) || '');
+});
+$('#learnQuery')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    explainLearn(e.target.value || '');
+  }
+});
+$('#historyRefreshBtn')?.addEventListener('click', async () => {
+  await loadHistory();
+  renderHistoryPage(($('#historySearch') || {}).value || '');
+});
+$('#historySearch')?.addEventListener('input', (e) => renderHistoryPage(e.target.value || ''));
+$('#snippetSearch')?.addEventListener('input', (e) => renderSnippetsPage(e.target.value || ''));
+$('#snippetAddBtn')?.addEventListener('click', () => {
+  const name = prompt('Snippet name');
+  if (!name) return;
+  const code = prompt('Snippet code');
+  if (code == null) return;
+  userSnippets.push({ name, key: 'custom', code });
+  saveUserSnippets();
+  renderSnippetsPage(($('#snippetSearch') || {}).value || '');
+});
+$('#settingsSaveBtn')?.addEventListener('click', () => {
+  const modelSel = $('#settingsModel');
+  const apiInput = $('#settingsApiBase');
+  const timeoutInput = $('#settingsTimeout');
+  if (modelSel) activeModel = modelSel.value;
+  try {
+    if (apiInput) localStorage.setItem('codedoctor_api_base', apiInput.value.trim());
+    if (timeoutInput) localStorage.setItem('codedoctor_timeout', String(timeoutInput.value || '5'));
+    localStorage.setItem('codedoctor_model', activeModel);
+  } catch { /* ignore */ }
+  syncModelLabels();
+  const st = $('#settingsStatus');
+  if (st) st.textContent = 'Saved. Reload the page if you changed the API base URL.';
+});
+$('#settingsDemoBtn')?.addEventListener('click', () => {
+  try { localStorage.setItem('codedoctor_api_base', 'demo'); } catch { /* ignore */ }
+  const st = $('#settingsStatus');
+  if (st) st.textContent = 'Demo mode selected. Reload the page to apply.';
+});
+$('#doctorPageSend')?.addEventListener('click', async () => {
+  const input = $('#doctorPageAsk');
+  const thread = $('#doctorPageThread');
+  const text = (input && input.value || '').trim();
+  if (!text || !thread) return;
+  thread.insertAdjacentHTML('beforeend', `<div style="margin:8px 0"><strong>You</strong><div>${esc(text)}</div></div>`);
+  input.value = '';
+  const thinking = document.createElement('div');
+  thinking.innerHTML = '<span class="dim">Doctor is thinking…</span>';
+  thread.appendChild(thinking);
+  const html = await callAiDoctor(text);
+  thinking.remove();
+  thread.insertAdjacentHTML('beforeend', `<div style="margin:8px 0"><strong>Doctor</strong><div>${html}</div></div>`);
+  thread.scrollTop = thread.scrollHeight;
+});
+$('#doctorPageAsk')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    $('#doctorPageSend')?.click();
+  }
+});
+$('#shellMenuBtn')?.addEventListener('click', () => setNavOpen(true));
+$('#shellNavBackdrop')?.addEventListener('click', () => setNavOpen(false));
+$('#shellModelBtn')?.addEventListener('click', () => navigate('settings'));
+
+$('#btnToggleFiles')?.addEventListener('click', () => {
+  workspaceApp?.classList.toggle('is-files-open');
+  $('#btnToggleFiles')?.classList.toggle('is-on', workspaceApp?.classList.contains('is-files-open'));
+});
+$('#btnToggleDoctor')?.addEventListener('click', () => {
+  workspaceApp?.classList.toggle('is-doctor-collapsed');
+  $('#btnToggleDoctor')?.classList.toggle('is-on', !workspaceApp?.classList.contains('is-doctor-collapsed'));
+});
+$('#btnCollapseDoctor')?.addEventListener('click', () => {
+  workspaceApp?.classList.add('is-doctor-collapsed');
+  $('#btnToggleDoctor')?.classList.remove('is-on');
+});
+
+function setWsView(view) {
+  if (!workspaceApp) return;
+  const next = view === 'ai' || view === 'output' ? view : 'editor';
+  workspaceApp.dataset.wsView = next;
+  $$('#wsMobileViews .ws-view-btn').forEach((btn) => {
+    btn.classList.toggle('is-active', btn.dataset.wsView === next);
+  });
+  if (next === 'output') {
+    workspaceApp.classList.remove('is-console-collapsed');
+    const outTab = document.querySelector('.ctab[data-cp="output"]');
+    if (outTab) outTab.click();
+  }
+  if (next === 'ai') {
+    workspaceApp.classList.remove('is-doctor-collapsed');
+    $('#btnToggleDoctor')?.classList.add('is-on');
+  }
+}
+
+$('#wsMobileViews')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-ws-view]');
+  if (!btn) return;
+  setWsView(btn.dataset.wsView);
+});
+
+/* Compact terminal height via drag */
+(() => {
+  const handle = $('#consoleResizer');
+  if (!handle || !workspaceApp) return;
+  let dragging = false;
+  let startY = 0;
+  let startH = 148;
+  const applyH = (px) => {
+    const h = Math.max(96, Math.min(320, px));
+    workspaceApp.style.setProperty('--ws-console', `${h}px`);
+  };
+  handle.addEventListener('pointerdown', (e) => {
+    if (workspaceApp.classList.contains('is-console-collapsed')) return;
+    dragging = true;
+    startY = e.clientY;
+    startH = parseFloat(getComputedStyle(workspaceApp).getPropertyValue('--ws-console')) || 148;
+    handle.classList.add('is-dragging');
+    handle.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    applyH(startH - (e.clientY - startY));
+  });
+  const endDrag = () => {
+    dragging = false;
+    handle.classList.remove('is-dragging');
+  };
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', endDrag);
+})();
+
+function syncWorkspaceChrome() {
+  const mobileViews = $('#wsMobileViews');
+  const w = window.innerWidth;
+  if (mobileViews) mobileViews.hidden = w > 700;
+  if (!workspaceApp) return;
+  if (w <= 700) {
+    if (!workspaceApp.dataset.wsView) setWsView('editor');
+    workspaceApp.classList.remove('is-doctor-collapsed');
+  } else {
+    delete workspaceApp.dataset.wsView;
+  }
+}
+window.addEventListener('resize', syncWorkspaceChrome);
+
+// Default layout: AI open on desktop, collapsed on tablet for editor focus.
+if (workspaceApp) {
+  if (window.innerWidth > 700 && window.innerWidth <= 1100) {
+    workspaceApp.classList.add('is-doctor-collapsed');
+    $('#btnToggleDoctor')?.classList.remove('is-on');
+  } else {
+    workspaceApp.classList.remove('is-doctor-collapsed');
+    $('#btnToggleDoctor')?.classList.add('is-on');
+  }
+  syncWorkspaceChrome();
+}
+
+window.addEventListener('hashchange', () => renderRoute(getRoute()));
+
+/* compatibility alias */
+function enterWorkspace(opts) { openWorkspace(opts || {}); }
 
 /* ---------- boot ---------- */
 $('#snippetList').innerHTML = SNIPPETS.map((s, i) =>
@@ -1645,7 +2097,6 @@ $('#snippetList').innerHTML = SNIPPETS.map((s, i) =>
 $('#templateList').innerHTML = TEMPLATES.map((s, i) =>
   `<li><button class="list-item" data-template="${i}">${icon('layout')}${s.name}<span class="sub">${s.desc}</span></button></li>`).join('');
 
-// Stay on home gate at boot — do not auto-focus editor or dump terminal noise yet.
 ta.value = files[active]?.src || '';
 termLog.innerHTML = '';
 renderCode(); renderAll(); setMode('complete');
@@ -1657,11 +2108,12 @@ updateHomeSendState();
   if (isDemoMode()) {
     if (banner) banner.style.display = 'flex';
     document.body.classList.add('has-demo-banner');
+    if (appShell) appShell.classList.add('has-banner');
   } else if (banner) {
     banner.style.display = 'none';
   }
 }
-// No auto-execution on open/reload. Fetch models only when a backend is expected.
 if (!isDemoMode()) loadModels();
-if (homePrompt) homePrompt.focus({ preventScroll: true });
+if (!location.hash || location.hash === '#') navigate('home', { replace: true });
+else renderRoute(getRoute());
 })();

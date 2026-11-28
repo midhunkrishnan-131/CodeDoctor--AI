@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CodeDoctor AI · Workspace</title>
+  <title>CodeDoctor AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1397,9 +1397,10 @@ body.view-workspace #home {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px 20px 0;
+  justify-content: flex-start;
+  padding: 48px 20px 28px;
   position: relative;
+  overflow: auto;
 }
 
 .home-hero {
@@ -1407,7 +1408,7 @@ body.view-workspace #home {
   flex-direction: column;
   align-items: center;
   gap: 18px;
-  margin-top: -8vh;
+  margin-top: 4vh;
   text-align: center;
 }
 
@@ -1441,11 +1442,12 @@ body.view-workspace #home {
 }
 
 .home-prompt-wrap {
-  position: absolute;
-  left: 50%;
-  bottom: max(28px, env(safe-area-inset-bottom, 0px) + 18px);
-  transform: translateX(-50%);
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
   width: min(760px, calc(100% - 32px));
+  margin: 28px auto 8px;
 }
 
 .home-prompt {
@@ -1634,11 +1636,954 @@ body.view-workspace #home {
   .home-attach-btn,
   .home-send-btn { width: 40px; height: 40px; }
 }
+  
+/* ===========================================================
+   Multi-page app shell
+   =========================================================== */
+:root {
+  --shell-bg: #0B0B0C;
+  --shell-panel: #121212;
+  --shell-surface: #171717;
+  --shell-line: #2A2A2A;
+  --shell-tx: #F5F5F5;
+  --shell-muted: #888888;
+  --shell-side: 220px;
+}
+
+body.app-shell {
+  background: var(--shell-bg);
+  color: var(--shell-tx);
+  overflow: hidden;
+}
+
+#appShell {
+  display: grid;
+  grid-template-columns: var(--shell-side) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  width: 100vw;
+  background: var(--shell-bg);
+}
+
+#appShell.has-banner {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+#appShell.has-banner #web-demo-banner { grid-column: 1 / -1; }
+
+.shell-nav {
+  grid-row: 2 / -1;
+  background: var(--shell-panel);
+  border-right: 1px solid var(--shell-line);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+}
+
+#appShell.has-banner .shell-nav { grid-row: 3 / -1; }
+
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 16px;
+  color: var(--shell-tx);
+  text-decoration: none;
+  font: 600 14px var(--sans);
+}
+.shell-brand .mark {
+  width: 28px; height: 28px; border-radius: 999px;
+  background: #f4f4f4; color: #111;
+  display: grid; place-items: center;
+}
+.shell-brand .mark .i { width: 14px; height: 14px; stroke-width: 2; }
+.shell-brand span em { font-style: normal; color: var(--shell-muted); font-weight: 500; }
+
+.shell-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--shell-muted);
+  font: 500 13px var(--sans);
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.shell-nav-btn .i { width: 16px; height: 16px; flex: none; }
+.shell-nav-btn:hover { background: rgba(255,255,255,.04); color: var(--shell-tx); }
+.shell-nav-btn.is-active { background: rgba(255,255,255,.07); color: var(--shell-tx); }
+.shell-nav-gap { flex: 1; }
+.shell-nav-foot { padding: 10px 12px; color: var(--shell-muted); font: 400 11px var(--sans); }
+
+.shell-main {
+  grid-column: 2;
+  grid-row: 2 / -1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--shell-bg);
+}
+#appShell.has-banner .shell-main { grid-row: 3 / -1; }
+
+.shell-header {
+  flex: none;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--shell-line);
+}
+.shell-header h1 {
+  font: 500 15px var(--sans);
+  color: var(--shell-tx);
+  letter-spacing: -0.01em;
+}
+.shell-header .spacer { flex: 1; }
+.shell-mobile-toggle {
+  display: none;
+  width: 36px; height: 36px; border-radius: 8px;
+  place-items: center; color: var(--shell-muted);
+}
+
+.shell-pages {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.page {
+  display: none;
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  animation: pageIn 0.22s ease;
+}
+.page.is-active { display: flex; flex-direction: column; }
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page { animation: none; }
+}
+
+#page-home #home,
+#home.page-home-inner {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  flex: 1;
+  min-height: 0;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  flex-direction: column;
+  background: transparent;
+}
+
+#page-workspace { overflow: hidden; padding: 0; }
+#page-workspace .app,
+#workspaceApp {
+  display: grid !important;
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+#page-workspace .app[hidden],
+#workspaceApp[hidden] { display: none !important; }
+
+.feature-page {
+  padding: 28px 28px 40px;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+}
+.feature-page h2 {
+  font: 500 22px/1.25 var(--sans);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.feature-page .lead {
+  color: var(--shell-muted);
+  font: 400 14px/1.5 var(--sans);
+  margin-bottom: 24px;
+  max-width: 42rem;
+}
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feature-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--shell-line);
+  border-radius: 12px;
+  background: var(--shell-surface);
+  text-align: left;
+  width: 100%;
+  color: var(--shell-tx);
+  cursor: pointer;
+}
+.feature-row:hover { border-color: #3a3a3a; background: #1a1a1a; }
+.feature-row .meta { flex: 1; min-width: 0; }
+.feature-row .meta strong { display: block; font: 500 14px var(--sans); }
+.feature-row .meta span { color: var(--shell-muted); font: 400 12.5px var(--sans); }
+.feature-row .tag {
+  font: 500 11px var(--mono);
+  color: var(--shell-muted);
+  border: 1px solid var(--shell-line);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+.feature-toolbar {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+}
+.feature-toolbar input, .feature-toolbar select, .settings-field input, .settings-field select {
+  background: #141414;
+  border: 1px solid var(--shell-line);
+  border-radius: 10px;
+  color: var(--shell-tx);
+  padding: 10px 12px;
+  font: 400 13px var(--sans);
+  min-width: 0;
+}
+.feature-toolbar input { flex: 1; min-width: 180px; }
+.btn-quiet {
+  border: 1px solid var(--shell-line);
+  background: transparent;
+  color: var(--shell-tx);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font: 500 12.5px var(--sans);
+  cursor: pointer;
+}
+.btn-quiet:hover { background: rgba(255,255,255,.04); }
+.btn-solid {
+  border: 0;
+  background: #f2f2f2;
+  color: #111;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font: 500 12.5px var(--sans);
+  cursor: pointer;
+}
+.home-quick {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center;
+  margin-top: 18px;
+}
+.home-quick a, .home-quick button {
+  border: 1px solid var(--shell-line);
+  background: rgba(255,255,255,.03);
+  color: var(--shell-muted);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: 500 12px var(--sans);
+  text-decoration: none;
+  cursor: pointer;
+}
+.home-quick a:hover, .home-quick button:hover { color: var(--shell-tx); background: rgba(255,255,255,.06); }
+.home-sections {
+  width: min(760px, calc(100% - 32px));
+  margin: 0 auto 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.home-block h3 {
+  font: 500 12px var(--sans);
+  color: var(--shell-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.home-block button, .home-block a {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--shell-line);
+  background: transparent;
+  color: var(--shell-tx);
+  font: 500 13px var(--sans);
+  cursor: pointer;
+  text-decoration: none;
+}
+.home-block button:last-child, .home-block a:last-child { border-bottom: 0; }
+.home-block button span, .home-block a span { display: block; color: var(--shell-muted); font: 400 12px var(--sans); margin-top: 2px; }
+
+.settings-grid { display: grid; gap: 14px; max-width: 520px; }
+.settings-field label { display: block; font: 500 12px var(--sans); color: var(--shell-muted); margin-bottom: 6px; }
+.doctor-page-wrap { display: flex; flex-direction: column; height: 100%; max-width: 820px; width: 100%; margin: 0 auto; padding: 20px; }
+.doctor-page-wrap .thread-box {
+  flex: 1; min-height: 240px; overflow: auto;
+  border: 1px solid var(--shell-line); border-radius: 14px;
+  background: #121212; padding: 16px; margin-bottom: 12px;
+}
+.learn-explain {
+  margin-top: 16px; border: 1px solid var(--shell-line); border-radius: 14px;
+  background: #121212; padding: 16px; min-height: 120px; color: var(--shell-tx);
+}
+
+@media (max-width: 900px) {
+  #appShell { grid-template-columns: 1fr; }
+  .shell-nav {
+    position: fixed; inset: 0 auto 0 0; width: min(260px, 84vw);
+    z-index: 60; transform: translateX(-105%); transition: transform 0.2s ease;
+    grid-row: auto;
+  }
+  body.nav-open .shell-nav { transform: none; }
+  .shell-nav-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 55;
+  }
+  body.nav-open .shell-nav-backdrop { display: block; }
+  .shell-main { grid-column: 1; grid-row: 2 / -1; }
+  #appShell.has-banner .shell-main { grid-row: 3 / -1; }
+  .shell-mobile-toggle { display: grid; }
+  .home-sections { grid-template-columns: 1fr; }
+  .feature-page { padding: 20px 16px 32px; }
+}
+
+  
+/* ===========================================================
+   Workspace studio redesign
+   =========================================================== */
+:root {
+  --ws-bg: #090909;
+  --ws-surface: #111111;
+  --ws-panel: #141414;
+  --ws-line: #252525;
+  --ws-tx: #F5F5F5;
+  --ws-muted: #888888;
+  --ws-accent: #D4FF45;
+  --ws-accent-ink: #12160a;
+  --ws-rail: 60px;
+  --ws-doctor-min: 300px;
+  --ws-doctor-max: 420px;
+  --ws-console: 148px;
+  --ws-toolbar: 48px;
+}
+
+/* Global icon rail */
+body.app-shell {
+  --shell-side: var(--ws-rail);
+  --shell-bg: var(--ws-bg);
+  --shell-panel: #0c0c0c;
+  --shell-surface: var(--ws-surface);
+  --shell-line: var(--ws-line);
+  --shell-tx: var(--ws-tx);
+  --shell-muted: var(--ws-muted);
+  background: var(--ws-bg);
+}
+
+.shell-nav {
+  width: var(--ws-rail);
+  padding: 10px 8px;
+  align-items: center;
+  gap: 6px;
+}
+.shell-brand {
+  justify-content: center;
+  padding: 8px 0 14px;
+}
+.shell-brand span:not(.mark) { display: none; }
+.shell-nav-btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 12px;
+  position: relative;
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+}
+.shell-nav-btn .i {
+  width: 16px;
+  height: 16px;
+}
+.shell-nav-btn.is-active {
+  background: rgba(212,255,69,.10);
+  color: var(--ws-accent);
+}
+.shell-nav-btn.is-active::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--ws-accent);
+}
+.shell-nav-foot { display: none; }
+.shell-nav-btn[title] { }
+
+body[data-page="workspace"] .shell-header { display: none; }
+body[data-page="workspace"] .shell-main {
+  background: var(--ws-bg);
+  min-height: 0;
+}
+body[data-page="workspace"] #shellPages {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#page-workspace {
+  overflow: hidden;
+  background: var(--ws-bg);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ~65% editor / ~35% AI — fractional columns, not a fixed doctor max that starves the editor */
+#page-workspace .app,
+#page-workspace #workspaceApp,
+#workspaceApp {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.85fr) minmax(var(--ws-doctor-min), 1fr) !important;
+  grid-template-rows: var(--ws-toolbar) minmax(0, 1fr) !important;
+  grid-template-areas: "toolbar toolbar" "center doctor" !important;
+  height: 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  background: var(--ws-bg);
+  color: var(--ws-tx);
+  gap: 0;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+#workspaceApp.is-doctor-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0 !important;
+}
+#workspaceApp.is-doctor-collapsed .doctor {
+  display: none !important;
+}
+
+/* Compact workspace toolbar */
+#workspaceApp .ws-toolbar,
+#workspaceApp > .topbar {
+  grid-area: toolbar;
+  height: var(--ws-toolbar);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 14px;
+  background: var(--ws-surface);
+  border-bottom: 1px solid var(--ws-line);
+  min-width: 0;
+}
+#workspaceApp .nav { display: none !important; }
+#workspaceApp .brand-name { font-size: 13px; }
+#workspaceApp .brand-name sup { color: var(--ws-accent); }
+#workspaceApp .brand-mark {
+  width: 26px; height: 26px; border-radius: 8px;
+  background: rgba(212,255,69,.12); color: var(--ws-accent);
+}
+#workspaceApp .ws-proj {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--ws-muted); font: 500 12.5px var(--sans);
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+#workspaceApp .ws-proj strong {
+  color: var(--ws-tx); font-weight: 500;
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#workspaceApp .ws-proj #projectRootLabel { max-width: 120px; }
+#workspaceApp .ws-proj #wsActiveFile { max-width: 220px; }
+#workspaceApp .ws-hint {
+  font-size: 11.5px;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+#workspaceApp .ws-mobile-views {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+}
+#workspaceApp .ws-view-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ws-line);
+  background: #141414;
+  color: var(--ws-muted);
+  font: 500 12px var(--sans);
+  cursor: pointer;
+}
+#workspaceApp .ws-view-btn.is-active {
+  background: rgba(212,255,69,.10);
+  color: var(--ws-accent);
+  border-color: rgba(212,255,69,.28);
+}
+#workspaceApp .ws-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--ws-muted); font: 500 12px var(--sans);
+}
+#workspaceApp .pill {
+  background: transparent; border: 0; padding: 0; gap: 6px;
+  color: var(--ws-muted); font-size: 12px;
+}
+#workspaceApp .model-btn {
+  height: 32px; border-radius: 8px; padding: 0 10px;
+  background: #171717; border: 1px solid var(--ws-line);
+}
+#workspaceApp .model-btn .src { display: none; }
+#workspaceApp .icon-btn, #workspaceApp .avatar {
+  width: 32px; height: 32px; border-radius: 8px;
+}
+#workspaceApp .avatar { font-size: 10px; background: #1c1c1c; }
+
+/* Hide old oversized project sidebar as primary column */
+#workspaceApp > .sidebar {
+  display: none !important;
+}
+
+/* Center column: editor + console (terminal spans editor column width) */
+#workspaceApp .ws-center,
+#workspaceApp > .workbench {
+  grid-area: center !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) var(--ws-console) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100%;
+  width: 100%;
+  background: var(--ws-bg);
+  border-right: 1px solid var(--ws-line);
+  position: relative;
+  overflow: hidden;
+}
+
+#workspaceApp.is-console-collapsed .ws-center,
+#workspaceApp.is-console-collapsed > .workbench {
+  grid-template-rows: auto minmax(0, 1fr) 36px;
+}
+#workspaceApp.is-console-collapsed .console-body,
+#workspaceApp.is-console-collapsed .term-in { display: none; }
+
+#workspaceApp .editor-bar {
+  height: 40px;
+  padding: 0 8px 0 4px;
+  background: #0e0e0e;
+  border-bottom: 1px solid var(--ws-line);
+  gap: 6px;
+}
+#workspaceApp .tabs {
+  gap: 2px;
+}
+#workspaceApp .tab {
+  height: 28px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  padding: 0 8px 0 10px;
+  color: var(--ws-muted);
+  font-size: 12px;
+}
+#workspaceApp .tab.is-active {
+  background: #1a1a1a;
+  color: var(--ws-tx);
+  box-shadow: inset 0 -1px 0 var(--ws-accent);
+}
+#workspaceApp .tab .x { opacity: 0.45; }
+#workspaceApp .run {
+  height: 30px;
+  border-radius: 8px;
+  background: var(--ws-accent);
+  overflow: hidden;
+}
+#workspaceApp .run > button {
+  height: 30px;
+  padding: 0 12px;
+  color: var(--ws-accent-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 6px;
+}
+#workspaceApp .run > button kbd {
+  display: none;
+}
+#workspaceApp .run-more {
+  width: 26px;
+  border-left: 1px solid rgba(0,0,0,.12);
+  color: var(--ws-accent-ink);
+}
+#workspaceApp .editor-scroll {
+  background: #0b0b0b;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+#workspaceApp .editor {
+  min-width: 0;
+  width: 100%;
+}
+#workspaceApp .gutter {
+  background: #0b0b0b;
+  color: #555;
+  border-right: 1px solid #1a1a1a;
+}
+#workspaceApp .code-input, #workspaceApp .code-layer {
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+/* Compact console */
+#workspaceApp .console {
+  height: auto !important;
+  min-height: 0;
+  border-top: 1px solid var(--ws-line);
+  background: var(--ws-panel);
+  display: grid;
+  grid-template-rows: 36px minmax(0, 1fr);
+  position: relative;
+}
+#workspaceApp .console-resizer {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 4;
+  background: transparent;
+}
+#workspaceApp .console-resizer:hover,
+#workspaceApp .console-resizer.is-dragging {
+  background: rgba(212,255,69,.35);
+}
+#workspaceApp .console-bar {
+  height: 36px;
+  padding: 0 8px;
+  background: #101010;
+}
+#workspaceApp .ctab {
+  height: 28px;
+  border-radius: 7px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  color: var(--ws-muted);
+}
+#workspaceApp .ctab.is-active {
+  background: #1a1a1a;
+  color: var(--ws-tx);
+  box-shadow: none;
+}
+#workspaceApp .ctab.is-active::after { display: none; }
+#workspaceApp .console-body {
+  padding: 8px 12px;
+  font-size: 12.5px;
+}
+#workspaceApp .term-in {
+  border-top: 1px solid var(--ws-line);
+  padding-top: 6px;
+}
+#workspaceApp .term-in .prompt { color: var(--ws-accent); opacity: 0.85; }
+
+/* AI Doctor — fill full row height; chat scrolls; prompt stays bottom */
+#workspaceApp .doctor {
+  grid-area: doctor !important;
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  width: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  background: var(--ws-panel);
+  border-left: 1px solid var(--ws-line);
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden;
+}
+#workspaceApp .doctor-head {
+  flex: none;
+  height: 44px;
+  padding: 0 12px;
+  background: #101010;
+  border-bottom: 1px solid var(--ws-line);
+}
+#workspaceApp .doctor-title {
+  font-size: 13px;
+  gap: 8px;
+}
+#workspaceApp .doctor-title .i { color: var(--ws-accent); }
+#workspaceApp .reading { font-size: 11.5px; color: var(--ws-muted); }
+#workspaceApp .mode {
+  flex: none;
+  display: grid;
+  margin: 10px 12px 0;
+  padding: 3px;
+  border-radius: 10px;
+  background: #0e0e0e;
+  border: 1px solid var(--ws-line);
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+#workspaceApp .mode button {
+  height: 30px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  gap: 6px;
+  color: var(--ws-muted);
+}
+#workspaceApp .mode button.is-active {
+  background: #1c1c1c;
+  color: var(--ws-tx);
+  box-shadow: none;
+}
+#workspaceApp .mode-desc {
+  flex: none;
+  margin: 8px 14px 0;
+  font-size: 11.5px;
+  color: var(--ws-muted);
+}
+#workspaceApp .chat {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  padding: 10px 12px;
+}
+#workspaceApp .verdict { font-size: 16px; }
+#workspaceApp .composer {
+  flex: none;
+  margin-top: auto;
+  border-top: 1px solid var(--ws-line);
+  background: #101010;
+  padding: 10px 12px 12px;
+}
+#workspaceApp .chips {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+#workspaceApp .chip {
+  height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  background: #161616;
+  border: 1px solid var(--ws-line);
+  color: var(--ws-muted);
+}
+#workspaceApp .composer-box {
+  border-radius: 12px;
+  background: #0e0e0e;
+  border: 1px solid var(--ws-line);
+  padding: 8px 8px 8px 10px;
+}
+#workspaceApp .composer-box textarea {
+  font-size: 13px;
+  color: var(--ws-tx);
+}
+#workspaceApp .send {
+  width: 32px; height: 32px; border-radius: 999px;
+  background: var(--ws-accent); color: var(--ws-accent-ink);
+}
+#workspaceApp .composer-meta {
+  color: var(--ws-muted);
+  font-size: 11px;
+}
+
+/* Files drawer (replaces permanent sidebar) */
+.ws-files-drawer {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  bottom: var(--ws-console);
+  width: min(260px, 70vw);
+  z-index: 5;
+  background: #0f0f0f;
+  border-right: 1px solid var(--ws-line);
+  transform: translateX(-105%);
+  transition: transform 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#workspaceApp.is-files-open .ws-files-drawer { transform: none; }
+#workspaceApp.is-console-collapsed .ws-files-drawer { bottom: 36px; }
+.ws-files-drawer .sidebar {
+  display: flex !important;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+.ws-files-drawer .challenge { display: none; }
+.ws-files-drawer .quick { padding: 8px; }
+.ws-files-drawer .quick button { height: 34px; border-radius: 8px; }
+
+#workspaceApp .statusbar {
+  display: none !important;
+}
+
+.ws-tool-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center;
+  color: var(--ws-muted);
+  border: 1px solid transparent;
+}
+.ws-tool-btn:hover { background: #1a1a1a; color: var(--ws-tx); }
+.ws-tool-btn.is-on {
+  background: rgba(212,255,69,.08);
+  color: var(--ws-accent);
+  border-color: rgba(212,255,69,.22);
+}
+
+/* Desktop / laptop: editor ~65% · AI ~35% side-by-side (never stack) */
+@media (min-width: 1101px) {
+  #page-workspace .app,
+  #page-workspace #workspaceApp,
+  #workspaceApp {
+    grid-template-columns: minmax(0, 1.85fr) minmax(var(--ws-doctor-min), 1fr) !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  #page-workspace .app,
+  #page-workspace #workspaceApp,
+  #workspaceApp {
+    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr) !important;
+  }
+}
+
+/* Tablet: keep side-by-side, editor priority; AI collapses cleanly */
+@media (min-width: 701px) and (max-width: 1100px) {
+  #page-workspace .app,
+  #page-workspace #workspaceApp,
+  #workspaceApp {
+    grid-template-columns: minmax(0, 2.1fr) minmax(260px, 0.85fr) !important;
+    grid-template-areas: "toolbar toolbar" "center doctor" !important;
+  }
+  #workspaceApp.is-doctor-collapsed {
+    grid-template-columns: minmax(0, 1fr) 0 !important;
+  }
+  #workspaceApp .ws-hint { display: none; }
+  #workspaceApp .model-btn .name {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Mobile: dedicated Code / Ask AI / Results views — no stacked panels */
+@media (max-width: 700px) {
+  #workspaceApp .ws-mobile-views {
+    display: inline-flex !important;
+  }
+  #workspaceApp .ws-proj,
+  #workspaceApp .ws-status,
+  #workspaceApp .menu,
+  #workspaceApp .ws-hint,
+  #workspaceApp #btnToggleDoctor {
+    display: none !important;
+  }
+  #workspaceApp .brand-name { display: none; }
+
+  #page-workspace .app,
+  #page-workspace #workspaceApp,
+  #workspaceApp {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: var(--ws-toolbar) minmax(0, 1fr) !important;
+    grid-template-areas: "toolbar" "center" !important;
+  }
+  #workspaceApp .doctor {
+    display: none !important;
+    border-left: 0;
+  }
+  #workspaceApp > .workbench {
+    border-right: 0;
+  }
+
+  #page-workspace #workspaceApp[data-ws-view="ai"],
+  #workspaceApp[data-ws-view="ai"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: var(--ws-toolbar) minmax(0, 1fr) !important;
+    grid-template-areas: "toolbar" "doctor" !important;
+  }
+  #page-workspace #workspaceApp[data-ws-view="ai"] .ws-center,
+  #page-workspace #workspaceApp[data-ws-view="ai"] > .workbench,
+  #workspaceApp[data-ws-view="ai"] .ws-center,
+  #workspaceApp[data-ws-view="ai"] > .workbench {
+    display: none !important;
+  }
+  #page-workspace #workspaceApp[data-ws-view="ai"] .doctor,
+  #workspaceApp[data-ws-view="ai"] .doctor {
+    display: flex !important;
+    grid-area: doctor !important;
+    height: 100% !important;
+    max-height: none !important;
+  }
+  #workspaceApp[data-ws-view="ai"] #btnCollapseDoctor {
+    display: none !important;
+  }
+
+  #page-workspace #workspaceApp[data-ws-view="output"],
+  #workspaceApp[data-ws-view="output"] {
+    grid-template-areas: "toolbar" "center" !important;
+  }
+  #workspaceApp[data-ws-view="output"] .editor-scroll {
+    display: none !important;
+  }
+  #workspaceApp[data-ws-view="output"] .ws-center,
+  #workspaceApp[data-ws-view="output"] > .workbench {
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+  #workspaceApp[data-ws-view="output"] .console {
+    min-height: 0;
+    height: 100% !important;
+  }
+  #workspaceApp[data-ws-view="output"].is-console-collapsed .console-body,
+  #workspaceApp[data-ws-view="output"].is-console-collapsed .term-in {
+    display: block;
+  }
+  #workspaceApp[data-ws-view="output"] .console-resizer { display: none; }
+
+  #workspaceApp .ws-view-btn,
+  #workspaceApp .ws-tool-btn,
+  #workspaceApp .run > button,
+  #workspaceApp .chip,
+  #workspaceApp .send,
+  #workspaceApp .mode button {
+    min-height: 40px;
+  }
+  #workspaceApp .run > button { padding: 0 16px; font-size: 14px; }
+  #workspaceApp .composer-box textarea { font-size: 16px; }
+}
+
   </style>
 </head>
-<body class="view-home">
-
-<!-- Hidden SVG sprite: display:none prevents any sprite rendering leak! -->
+<body class="app-shell" data-page="home">
+  <!-- Hidden SVG sprite: display:none prevents any sprite rendering leak! -->
 <svg style="display:none;" aria-hidden="true">
   <defs>
     <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M22 12h-4l-3 8-6-16-3 8H2"/></symbol>
@@ -1673,18 +2618,50 @@ body.view-workspace #home {
   </defs>
 </svg>
 
-<!-- ============ HOME GATE ============ -->
-<div id="home" aria-label="CodeDoctor home">
+<div id="web-demo-banner" style="display:none;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;padding:0.45rem 0.85rem;background:#141414;border-bottom:1px solid #2A2A2A;font:500 0.8rem/1.3 'Instrument Sans',system-ui,sans-serif;color:#888888;">
+    <span>Browser demo — offline simulation; connect a local backend for real Python runs &amp; AI.</span>
+    <a href="../" style="color:#F5F5F5;text-decoration:none;font-weight:600;">Home</a>
+    <a href="https://github.com/midhunkrishnan-131/CodeDoctor--AI" style="color:#F5F5F5;text-decoration:none;font-weight:600;">GitHub</a>
+  </div>
+
+
+<div id="appShell">
+  <aside class="shell-nav" id="shellNav" aria-label="App navigation">
+    <a class="shell-brand" href="#/home" data-route="home">
+      <span class="mark"><svg class="i"><use href="#i-pulse"/></svg></span>
+      <span>CodeDoctor <em>AI</em></span>
+    </a>
+    <button type="button" class="shell-nav-btn is-active" data-route="home" title="Home" aria-label="Home"><svg class="i"><use href="#i-layout"/></svg>Home</button>
+    <button type="button" class="shell-nav-btn" data-route="workspace" title="Workspace — write & run code" aria-label="Workspace"><svg class="i"><use href="#i-code"/></svg>Workspace</button>
+    <button type="button" class="shell-nav-btn" data-route="learn" title="Learn" aria-label="Learn"><svg class="i"><use href="#i-book"/></svg>Learn</button>
+    <button type="button" class="shell-nav-btn" data-route="challenges" title="Challenges" aria-label="Challenges"><svg class="i"><use href="#i-bolt"/></svg>Challenges</button>
+    <button type="button" class="shell-nav-btn" data-route="history" title="History" aria-label="History"><svg class="i"><use href="#i-terminal"/></svg>History</button>
+    <div class="shell-nav-gap"></div>
+    <button type="button" class="shell-nav-btn" data-route="settings" title="Settings" aria-label="Settings"><svg class="i"><use href="#i-sliders"/></svg>Settings</button>
+    <div class="shell-nav-foot">Minimal AI coding workspace</div>
+  </aside>
+  <div class="shell-nav-backdrop" id="shellNavBackdrop" hidden></div>
+  <div class="shell-main">
+    <header class="shell-header">
+      <button type="button" class="shell-mobile-toggle" id="shellMenuBtn" aria-label="Open menu"><svg class="i"><use href="#i-more"/></svg></button>
+      <h1 id="shellPageTitle">Home</h1>
+      <div class="spacer"></div>
+      <button type="button" class="home-chip" id="shellModelBtn" style="height:32px"><span id="shellModelLabel">openai/gpt-oss-120b</span></button>
+    </header>
+    <div class="shell-pages" id="shellPages">
+<section class="page is-active" id="page-home" data-page="home">
+<!-- ============ HOME ============ -->
+<div id="home" class="page-home-inner" aria-label="CodeDoctor home">
   <header class="home-top">
     <div class="home-top-left">
-      <button type="button" class="home-logo" id="homeLogoBtn" aria-label="CodeDoctor AI" data-home-nav="workspace">
+      <button type="button" class="home-logo" id="homeLogoBtn" aria-label="CodeDoctor AI" data-route="workspace">
         <svg class="i"><use href="#i-pulse"/></svg>
       </button>
-      <button type="button" class="home-ws" id="homeWorkspaceBtn" data-home-nav="workspace">
+      <button type="button" class="home-ws" id="homeWorkspaceBtn" data-route="workspace">
         My Workspace
         <svg class="i"><use href="#i-chev"/></svg>
       </button>
-      <button type="button" class="home-folder" id="homeOpenWorkspace" data-home-nav="workspace">
+      <button type="button" class="home-folder" id="homeOpenWorkspace" data-route="workspace">
         <svg class="i"><use href="#i-folder"/></svg>
         <span>codedoctor</span>
       </button>
@@ -1696,16 +2673,16 @@ body.view-workspace #home {
     <div class="home-top-center" aria-hidden="true">
       <span class="home-tab is-active">Ask CodeDoctor</span>
       <span class="home-tab">Challenges</span>
-      <button type="button" class="home-icon-btn" data-home-nav="challenges" aria-label="Open challenges">
+      <button type="button" class="home-icon-btn" data-route="challenges" aria-label="Open challenges">
         <svg class="i"><use href="#i-plus"/></svg>
       </button>
     </div>
 
     <div class="home-top-right">
-      <button type="button" class="home-icon-btn" id="homeSearchBtn" aria-label="Search" data-home-nav="workspace">
+      <button type="button" class="home-icon-btn" id="homeSearchBtn" aria-label="Search" data-route="workspace">
         <svg class="i"><use href="#i-search"/></svg>
       </button>
-      <button type="button" class="home-icon-btn" id="homeSettingsBtn" aria-label="Settings">
+      <button type="button" class="home-icon-btn" id="homeSettingsBtn" aria-label="Settings" data-route="settings">
         <svg class="i"><use href="#i-sliders"/></svg>
       </button>
       <button type="button" class="home-avatar" id="homeAvatarBtn" aria-label="Account">MK</button>
@@ -1759,101 +2736,117 @@ body.view-workspace #home {
         </div>
       </form>
       <p class="home-hint">Enter to send · Shift+Enter for a new line</p>
+      <div class="home-quick">
+        <button type="button" data-route="workspace">Open Workspace</button>
+        <button type="button" data-route="learn">Learn Python</button>
+        <button type="button" data-route="challenges">Challenges</button>
+        <button type="button" data-route="doctor">Ask Doctor</button>
+      </div>
+    </div>
+    <div class="home-sections">
+      <div class="home-block">
+        <h3>Suggested learning</h3>
+        <button type="button" data-learn-topic="variables">Variables &amp; types<span>Python basics</span></button>
+        <button type="button" data-learn-topic="loops">Loops<span>for / while</span></button>
+        <button type="button" data-learn-topic="functions">Functions<span>def, return, args</span></button>
+      </div>
+      <div class="home-block">
+        <h3>Quick start</h3>
+        <button type="button" data-route="challenges">Two Sum challenge<span>Practice algorithms</span></button>
+        <button type="button" data-route="templates">Start from a template<span>Blank or starter</span></button>
+        <button type="button" data-route="history">Recent activity<span>Past diagnoses</span></button>
+      </div>
     </div>
   </div>
 </div>
+</section>
 
-<div class="app is-workspace-hidden" id="workspaceApp" hidden>
+<section class="page" id="page-workspace" data-page="workspace" hidden>
+<div class="app" id="workspaceApp">
 
-  <!-- ============ TOP BAR ============ -->
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="CodeDoctor AI">
+  <header class="topbar ws-toolbar">
+    <a class="brand" href="#/home" data-route="home" aria-label="CodeDoctor AI">
       <span class="brand-mark"><svg class="i"><use href="#i-pulse"/></svg></span>
       <span class="brand-name">CodeDoctor<sup>AI</sup></span>
     </a>
-
-    <nav class="nav" aria-label="Primary">
-      <button class="nav-item is-active" data-nav="workspace">Workspace</button>
-      <button class="nav-item" data-nav="challenges">Challenges</button>
-      <button class="nav-item" data-nav="history">History</button>
-      <button class="nav-item" data-nav="settings">Settings</button>
-    </nav>
-
-    <div class="topbar-right">
-      <div class="pill"><span class="dot dot--ok" id="sandboxDot"></span><span id="sandboxText">Python 3.10 sandbox</span></div>
-
-      <div class="menu">
-        <button class="model-btn" id="modelBtn" data-action="toggle-model" aria-haspopup="listbox" aria-expanded="false">
-          <span class="src">Groq</span>
-          <span class="name" id="modelName">openai/gpt-oss-120b</span>
-          <svg class="i"><use href="#i-chev"/></svg>
-        </button>
-        <ul class="menu-list" id="modelList" role="listbox" hidden>
-          <li><button role="option" data-model="openai/gpt-oss-120b" aria-selected="true"><span>openai/gpt-oss-120b</span><span class="tag">recommended</span></button></li>
-          <li><button role="option" data-model="openai/gpt-oss-20b" aria-selected="false"><span>openai/gpt-oss-20b</span><span class="tag">fast</span></button></li>
-          <li><button role="option" data-model="qwen/qwen3.8-27b" aria-selected="false"><span>qwen/qwen3.8-27b</span><span class="tag">code</span></button></li>
-        </ul>
-      </div>
-
-      <button class="icon-btn" id="btnNotification" aria-label="Notifications"><svg class="i"><use href="#i-bell"/></svg><span class="ping"></span></button>
-      <button class="avatar" id="btnAvatar" aria-label="Account">MK</button>
+    <div class="ws-proj" title="Current file">
+      <strong id="projectRootLabel">Workspace</strong>
+      <span class="dim">·</span>
+      <strong id="wsActiveFile">solution.py</strong>
     </div>
+    <div class="spacer" style="flex:1"></div>
+    <div class="ws-mobile-views" id="wsMobileViews" hidden>
+      <button type="button" class="ws-view-btn is-active" data-ws-view="editor">Code</button>
+      <button type="button" class="ws-view-btn" data-ws-view="ai">Ask AI</button>
+      <button type="button" class="ws-view-btn" data-ws-view="output">Results</button>
+    </div>
+    <div class="ws-status pill" title="Run status"><span class="dot dot--ok" id="sandboxDot"></span><span id="sandboxText">Ready</span></div>
+    <button type="button" class="ws-tool-btn" id="btnToggleFiles" title="Open files" aria-label="Open files"><svg class="i"><use href="#i-folder"/></svg></button>
+    <button type="button" class="ws-tool-btn" id="btnToggleDoctor" title="Show or hide AI Doctor" aria-label="Toggle AI Doctor"><svg class="i"><use href="#i-spark"/></svg></button>
+    <div class="menu">
+      <button class="model-btn" id="modelBtn" data-action="toggle-model" aria-haspopup="listbox" aria-expanded="false" title="Choose AI model">
+        <span class="src">Groq</span>
+        <span class="name" id="modelName">openai/gpt-oss-120b</span>
+        <svg class="i"><use href="#i-chev"/></svg>
+      </button>
+      <ul class="menu-list" id="modelList" role="listbox" hidden>
+        <li><button role="option" data-model="openai/gpt-oss-120b" aria-selected="true"><span>openai/gpt-oss-120b</span><span class="tag">recommended</span></button></li>
+        <li><button role="option" data-model="openai/gpt-oss-20b" aria-selected="false"><span>openai/gpt-oss-20b</span><span class="tag">fast</span></button></li>
+        <li><button role="option" data-model="qwen/qwen3.8-27b" aria-selected="false"><span>qwen/qwen3.8-27b</span><span class="tag">code</span></button></li>
+      </ul>
+    </div>
+    <button class="avatar" id="btnAvatar" aria-label="Account">MK</button>
   </header>
 
-  <!-- ============ SIDEBAR ============ -->
-  <aside class="sidebar" aria-label="Project sidebar">
-    <div class="seg-tabs" role="tablist">
-      <button role="tab" class="is-active" data-pane="files" aria-selected="true">Files</button>
-      <button role="tab" data-pane="snippets" aria-selected="false">Snippets</button>
-      <button role="tab" data-pane="templates" aria-selected="false">Templates</button>
-    </div>
-
-    <div class="side-panes">
-      <div class="pane is-active" id="pane-files">
-        <div class="pane-head">
-          <span id="projectRootLabel">challenge-04</span>
-          <button class="icon-btn icon-btn--sm" data-action="new-file" aria-label="New file"><svg class="i"><use href="#i-plus"/></svg></button>
+  <main class="workbench ws-center">
+    <div class="ws-files-drawer" id="wsFilesDrawer">
+      <aside class="sidebar" aria-label="Project files">
+        <div class="seg-tabs" role="tablist">
+          <button role="tab" class="is-active" data-pane="files" aria-selected="true">Files</button>
+          <button role="tab" data-pane="snippets" aria-selected="false">Snippets</button>
+          <button role="tab" data-pane="templates" aria-selected="false">Starters</button>
         </div>
-        <ul id="fileList"></ul>
-      </div>
-      <div class="pane" id="pane-snippets">
-        <div class="pane-head"><span>Insert at cursor</span></div>
-        <ul id="snippetList"></ul>
-      </div>
-      <div class="pane" id="pane-templates">
-        <div class="pane-head"><span>Start from</span></div>
-        <ul id="templateList"></ul>
-      </div>
+        <div class="side-panes">
+          <div class="pane is-active" id="pane-files">
+            <div class="pane-head">
+              <span>Your files</span>
+              <button class="icon-btn icon-btn--sm" data-action="new-file" aria-label="New file" title="New file"><svg class="i"><use href="#i-plus"/></svg></button>
+            </div>
+            <ul id="fileList"></ul>
+          </div>
+          <div class="pane" id="pane-snippets">
+            <div class="pane-head"><span>Insert into editor</span></div>
+            <ul id="snippetList"></ul>
+          </div>
+          <div class="pane" id="pane-templates">
+            <div class="pane-head"><span>Start from a template</span></div>
+            <ul id="templateList"></ul>
+          </div>
+        </div>
+        <div class="quick">
+          <button data-action="new-file"><svg class="i"><use href="#i-file"/></svg>New file</button>
+          <button data-action="format"><svg class="i"><use href="#i-format"/></svg>Clean up code</button>
+        </div>
+        <div class="challenge" title="Click to cycle next challenge" hidden>
+          <div class="challenge-top"><span id="challengeNum">Challenge 01</span><span id="challengeDiff">Easy</span></div>
+          <div class="challenge-title" id="challengeTitle">Two Sum</div>
+          <div class="segs" id="segs"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="challenge-foot" id="challengeFoot">Click to switch challenge</div>
+        </div>
+      </aside>
     </div>
 
-    <div class="quick">
-      <h3>Quick actions</h3>
-      <button data-action="new-file"><svg class="i"><use href="#i-file"/></svg>New file<kbd>Alt N</kbd></button>
-      <button data-action="run"><svg class="i"><use href="#i-play"/></svg>Run code<kbd>Ctrl ↵</kbd></button>
-      <button data-action="format"><svg class="i"><use href="#i-format"/></svg>Format code<kbd>⇧ Alt F</kbd></button>
-    </div>
-
-    <div class="challenge" title="Click to cycle next challenge">
-      <div class="challenge-top"><span id="challengeNum">Challenge 01</span><span id="challengeDiff">Easy</span></div>
-      <div class="challenge-title" id="challengeTitle">Two Sum</div>
-      <div class="segs" id="segs"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="challenge-foot" id="challengeFoot">Click to switch challenge</div>
-    </div>
-  </aside>
-
-  <!-- ============ WORKBENCH ============ -->
-  <main class="workbench">
     <div class="editor-bar">
       <div class="tabs" id="tabs" role="tablist"></div>
-      <button class="icon-btn" data-action="new-file" aria-label="New file"><svg class="i"><use href="#i-plus"/></svg></button>
-
+      <button class="icon-btn" data-action="new-file" aria-label="New file" title="New file"><svg class="i"><use href="#i-plus"/></svg></button>
+      <div class="spacer" style="flex:1"></div>
+      <span class="ws-hint dim" id="wsEditorHint">Write code here</span>
       <div class="editor-actions">
         <div class="run">
-          <button id="runBtn" data-action="run">
+          <button id="runBtn" data-action="run" title="Run your code (Ctrl+Enter)">
             <svg class="i i--solid run-ico"><use href="#i-play"/></svg><span class="spin"></span>
-            <span id="runLabel">Run</span><kbd>Ctrl ↵</kbd>
+            <span id="runLabel">Run</span>
           </button>
-          <button class="run-more" aria-label="Run options"><svg class="i"><use href="#i-chev"/></svg></button>
         </div>
       </div>
     </div>
@@ -1869,7 +2862,8 @@ body.view-workspace #home {
       </div>
     </div>
 
-    <section class="console" id="console" aria-label="Console">
+    <section class="console" id="console" aria-label="Results">
+      <div class="console-resizer" id="consoleResizer" title="Drag to resize" aria-hidden="true"></div>
       <div class="console-bar">
         <div class="console-tabs" role="tablist">
           <button class="ctab is-active" role="tab" data-cp="terminal"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
@@ -1878,17 +2872,16 @@ body.view-workspace #home {
           <button class="ctab" role="tab" data-cp="history"><svg class="i"><use href="#i-book"/></svg>History</button>
         </div>
         <div class="console-tools">
-          <button class="icon-btn icon-btn--sm" data-action="focus-term" aria-label="New terminal"><svg class="i"><use href="#i-plus"/></svg></button>
-          <button class="icon-btn icon-btn--sm" data-action="clear-term" aria-label="Clear terminal"><svg class="i"><use href="#i-trash"/></svg></button>
-          <button class="icon-btn icon-btn--sm" data-action="toggle-console" aria-label="Expand panel"><svg class="i"><use href="#i-expand"/></svg></button>
+          <button class="icon-btn icon-btn--sm" data-action="clear-term" aria-label="Clear" title="Clear"><svg class="i"><use href="#i-trash"/></svg></button>
+          <button class="icon-btn icon-btn--sm" id="btnToggleConsole" data-action="toggle-console" aria-label="Show or hide results" title="Show or hide results"><svg class="i"><use href="#i-expand"/></svg></button>
         </div>
       </div>
       <div class="console-body" id="consoleBody">
         <div class="cpane is-active" id="cp-terminal">
           <div id="termLog"></div>
           <label class="term-in">
-            <span class="prompt">sandbox@py310 ~/codedoctor $</span>
-            <input id="termIn" type="text" spellcheck="false" autocomplete="off" aria-label="Terminal input">
+            <span class="prompt">$</span>
+            <input id="termIn" type="text" spellcheck="false" autocomplete="off" aria-label="Terminal input" placeholder="Type a command or click Run">
           </label>
         </div>
         <div class="cpane" id="cp-output"></div>
@@ -1898,18 +2891,18 @@ body.view-workspace #home {
     </section>
   </main>
 
-  <!-- ============ DOCTOR PANEL ============ -->
-  <aside class="doctor" aria-label="AI assistant">
+  <aside class="doctor" aria-label="AI assistant" id="doctorPanel">
     <div class="doctor-head">
-      <div class="doctor-title"><svg class="i"><use href="#i-spark"/></svg>Doctor</div>
-      <span class="reading"><span class="dot dot--ok"></span>Reading <span id="readName">solution.py</span></span>
+      <div class="doctor-title"><svg class="i"><use href="#i-spark"/></svg>AI Doctor</div>
+      <span class="reading"><span class="dot dot--ok"></span>Helping with <span id="readName">solution.py</span></span>
+      <button type="button" class="ws-tool-btn" id="btnCollapseDoctor" title="Hide AI Doctor" aria-label="Hide AI Doctor" style="margin-left:auto"><svg class="i"><use href="#i-x"/></svg></button>
     </div>
 
-    <div class="mode" role="tablist" aria-label="Answer mode">
-      <button class="is-active" role="tab" data-mode="complete" aria-selected="true"><svg class="i"><use href="#i-code"/></svg>Complete Answer</button>
-      <button role="tab" data-mode="logic" aria-selected="false"><svg class="i"><use href="#i-bulb"/></svg>Logic Suggestion</button>
+    <div class="mode" role="tablist" aria-label="How should AI help?">
+      <button class="is-active" role="tab" data-mode="complete" aria-selected="true" title="Get a full answer with fixed code">Full answer</button>
+      <button role="tab" data-mode="logic" aria-selected="false" title="Get hints so you can solve it yourself">Hints only</button>
     </div>
-    <p class="mode-desc" id="modeDesc">Finds the bug and hands you corrected code.</p>
+    <p class="mode-desc" id="modeDesc">Ask anything about your code — bugs, fixes, or explanations.</p>
 
     <div class="chat" id="chat" aria-live="polite">
       <header>
@@ -1922,23 +2915,21 @@ body.view-workspace #home {
 
     <div class="composer">
       <div class="chips">
-        <button class="chip" data-chip="Find bugs & root cause"><svg class="i"><use href="#i-bug"/></svg>Find bugs &amp; root cause</button>
-        <button class="chip" data-chip="Provide corrected code"><svg class="i"><use href="#i-wrench"/></svg>Provide corrected code</button>
-        <button class="chip" data-chip="Suggest better logic"><svg class="i"><use href="#i-bolt"/></svg>Suggest better logic</button>
-        <button class="chip" data-chip="Explain the concept"><svg class="i"><use href="#i-book"/></svg>Explain the concept</button>
+        <button class="chip" data-chip="Explain this code in simple words"><svg class="i"><use href="#i-book"/></svg>Explain</button>
+        <button class="chip" data-chip="Find bugs & root cause"><svg class="i"><use href="#i-bug"/></svg>Find bugs</button>
+        <button class="chip" data-chip="Provide corrected code"><svg class="i"><use href="#i-wrench"/></svg>Fix it</button>
       </div>
       <div class="composer-box">
-        <textarea id="ask" rows="1" placeholder="Ask about your code…" aria-label="Ask about your code"></textarea>
-        <button class="send" id="send" aria-label="Send" disabled><svg class="i"><use href="#i-send"/></svg></button>
+        <textarea id="ask" rows="1" placeholder="Ask a question about your code…" aria-label="Ask about your code"></textarea>
+        <button class="send" id="send" aria-label="Send" title="Send" disabled><svg class="i"><use href="#i-arrow-up"/></svg></button>
       </div>
       <div class="composer-meta">
-        <span class="ctx"><svg class="i"><use href="#i-file"/></svg><span id="ctxName">solution.py</span> · <span id="ctxLines">9</span> lines</span>
-        <span>Enter to send</span>
+        <span class="ctx"><span id="ctxName">solution.py</span> · <span id="ctxLines">9</span> lines</span>
+        <span>Press Enter to ask</span>
       </div>
     </div>
   </aside>
 
-  <!-- ============ STATUS BAR ============ -->
   <footer class="statusbar">
     <span class="st-item"><span class="dot dot--ok"></span>Ready</span>
     <span class="st-item" id="stIssues"></span>
@@ -1949,7 +2940,109 @@ body.view-workspace #home {
     <span id="stEnv">Python 3.10 Sandbox</span>
   </footer>
 </div>
+</section>
 
-<script src="script.js?v=20261128-home"></script>
+<section class="page" id="page-learn" data-page="learn" hidden>
+  <div class="feature-page">
+    <h2>Learn</h2>
+    <p class="lead">Beginner-friendly explanations with optional practice in the Workspace. Pick a topic or ask your own question.</p>
+    <div class="feature-toolbar">
+      <input id="learnQuery" type="text" placeholder="What do you want to learn?" />
+      <button type="button" class="btn-solid" id="learnAskBtn">Explain</button>
+      <button type="button" class="btn-quiet" data-route="workspace">Practice in Workspace</button>
+    </div>
+    <div class="feature-list" id="learnTopicList"></div>
+    <div class="learn-explain" id="learnExplain"><span class="dim">Choose a topic to get a simple explanation.</span></div>
+  </div>
+</section>
+
+<section class="page" id="page-challenges" data-page="challenges" hidden>
+  <div class="feature-page">
+    <h2>Challenges</h2>
+    <p class="lead">Pick a coding problem, then open it in Workspace to run and debug.</p>
+    <div class="feature-list" id="challengesList"></div>
+  </div>
+</section>
+
+<section class="page" id="page-history" data-page="history" hidden>
+  <div class="feature-page">
+    <h2>History</h2>
+    <p class="lead">Previous AI diagnoses and coding sessions. Restore one to continue in Workspace.</p>
+    <div class="feature-toolbar">
+      <input id="historySearch" type="search" placeholder="Search history…" />
+      <button type="button" class="btn-quiet" id="historyRefreshBtn">Refresh</button>
+    </div>
+    <div class="feature-list" id="pageHistoryList"></div>
+  </div>
+</section>
+
+<section class="page" id="page-templates" data-page="templates" hidden>
+  <div class="feature-page">
+    <h2>Templates</h2>
+    <p class="lead">Start a new file from a reusable Python template in Workspace.</p>
+    <div class="feature-list" id="pageTemplateList"></div>
+  </div>
+</section>
+
+<section class="page" id="page-snippets" data-page="snippets" hidden>
+  <div class="feature-page">
+    <h2>Snippets</h2>
+    <p class="lead">Reusable code fragments. Insert into the Workspace editor or save your own.</p>
+    <div class="feature-toolbar">
+      <input id="snippetSearch" type="search" placeholder="Search snippets…" />
+      <button type="button" class="btn-solid" id="snippetAddBtn">New snippet</button>
+    </div>
+    <div class="feature-list" id="pageSnippetList"></div>
+  </div>
+</section>
+
+<section class="page" id="page-settings" data-page="settings" hidden>
+  <div class="feature-page">
+    <h2>Settings</h2>
+    <p class="lead">Configure model, API connection, and preferences.</p>
+    <div class="settings-grid">
+      <div class="settings-field">
+        <label for="settingsModel">AI model</label>
+        <select id="settingsModel"></select>
+      </div>
+      <div class="settings-field">
+        <label for="settingsApiBase">API base URL (empty = demo / same-origin)</label>
+        <input id="settingsApiBase" type="text" placeholder="http://127.0.0.1:8000 or leave blank for demo" />
+      </div>
+      <div class="settings-field">
+        <label for="settingsTimeout">Execution timeout (seconds)</label>
+        <input id="settingsTimeout" type="number" min="1" max="60" value="5" />
+      </div>
+      <div>
+        <button type="button" class="btn-solid" id="settingsSaveBtn">Save settings</button>
+        <button type="button" class="btn-quiet" id="settingsDemoBtn" style="margin-left:8px">Use demo mode</button>
+      </div>
+      <p class="lead" id="settingsStatus" style="margin:0"></p>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="page-doctor" data-page="doctor" hidden>
+  <div class="doctor-page-wrap">
+    <h2 style="font:500 22px/1.2 var(--sans);margin-bottom:8px">AI Doctor</h2>
+    <p class="lead" style="margin-bottom:12px">Ask for fixes, explanations, and better logic. Open Workspace when you want to run code.</p>
+    <div class="feature-toolbar">
+      <button type="button" class="btn-quiet" data-doc-mode="complete">Complete Answer</button>
+      <button type="button" class="btn-quiet" data-doc-mode="logic">Logic Suggestion</button>
+      <button type="button" class="btn-quiet" data-route="workspace">Open Workspace</button>
+    </div>
+    <div class="thread-box" id="doctorPageThread"></div>
+    <div class="feature-toolbar">
+      <input id="doctorPageAsk" type="text" placeholder="Ask the Doctor…" style="flex:1" />
+      <button type="button" class="btn-solid" id="doctorPageSend">Send</button>
+    </div>
+  </div>
+</section>
+
+    </div>
+  </div>
+</div>
+
+<script src="script.js?v=20261128-layoutfix"></script>
 </body>
 </html>
