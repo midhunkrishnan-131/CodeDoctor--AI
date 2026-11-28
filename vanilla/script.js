@@ -1148,11 +1148,19 @@ async function loadModels() {
     if (data.models && data.models.length) {
       activeModel = data.default || data.models[0].id;
       $('#modelName').textContent = activeModel;
+      const homeModelLabel = $('#homeModelLabel');
+      if (homeModelLabel) homeModelLabel.textContent = activeModel;
       $('#modelList').innerHTML = data.models.map((m) => `
         <li><button role="option" data-model="${esc(m.id)}" aria-selected="${m.id === activeModel}">
           <span>${esc(m.id)}</span><span class="tag">${esc(m.provider || '')}</span>
         </button></li>
       `).join('');
+      const homeModelMenu = $('#homeModelMenu');
+      if (homeModelMenu) {
+        homeModelMenu.innerHTML = data.models.map((m) =>
+          `<button type="button" role="option" data-home-model="${esc(m.id)}" aria-selected="${m.id === activeModel}">${esc(m.id)}</button>`
+        ).join('');
+      }
     }
   } catch (e) {
     console.warn('Could not load models list:', e && (e.userMessage || e.message) ? (e.userMessage || e.message) : e);
@@ -1243,8 +1251,7 @@ document.addEventListener('click', e => {
   if ((el = t.closest('[data-open]')))     return openFile(el.dataset.open);
   if ((el = t.closest('[data-model]'))) {
     activeModel = el.dataset.model;
-    $('#modelName').textContent = activeModel;
-    $$('[data-model]').forEach(b => b.setAttribute('aria-selected', b === el));
+    syncModelLabels();
     return closeMenu();
   }
   if ((el = t.closest('[data-action]')))   return action(el.dataset.action);
@@ -1269,6 +1276,10 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('keydown', e => {
+  if (!workspaceEntered) {
+    if (e.key === 'Escape') closeHomeMenus();
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); }
   else if (e.altKey && !e.shiftKey && e.code === 'KeyN') { e.preventDefault(); newFile(''); }
   else if (e.altKey && e.shiftKey && e.code === 'KeyF') { e.preventDefault(); format(); }
@@ -1281,31 +1292,376 @@ function renderAll() {
   renderChallenge(); renderStatus(); renderDoctor();
 }
 
+/* ---------- home gate ---------- */
+let workspaceEntered = false;
+let homeIntentMode = 'create';
+const pendingHomeFiles = [];
+
+const homeRoot = $('#home');
+const homePrompt = $('#homePrompt');
+const homeSendBtn = $('#homeSendBtn');
+const homePromptForm = $('#homePromptForm');
+const homeAttachList = $('#homeAttachList');
+const homeFileInput = $('#homeFileInput');
+const homeModeBtn = $('#homeModeBtn');
+const homeModeMenu = $('#homeModeMenu');
+const homeModeLabel = $('#homeModeLabel');
+const homeModelBtn = $('#homeModelBtn');
+const homeModelMenu = $('#homeModelMenu');
+const homeModelLabel = $('#homeModelLabel');
+const workspaceApp = $('#workspaceApp') || $('.app');
+
+function syncModelLabels() {
+  const mn = $('#modelName');
+  if (mn) mn.textContent = activeModel;
+  if (homeModelLabel) homeModelLabel.textContent = activeModel;
+  $$('#modelList [data-model]').forEach((b) => b.setAttribute('aria-selected', b.dataset.model === activeModel));
+  $$('#homeModelMenu [data-home-model]').forEach((b) => b.setAttribute('aria-selected', b.dataset.homeModel === activeModel));
+}
+
+function closeHomeMenus() {
+  if (homeModeMenu) homeModeMenu.hidden = true;
+  if (homeModelMenu) homeModelMenu.hidden = true;
+  if (homeModeBtn) homeModeBtn.setAttribute('aria-expanded', 'false');
+  if (homeModelBtn) homeModelBtn.setAttribute('aria-expanded', 'false');
+  if (homeModeBtn) homeModeBtn.classList.remove('is-open');
+  if (homeModelBtn) homeModelBtn.classList.remove('is-open');
+}
+
+function setHomeIntentMode(next) {
+  homeIntentMode = next;
+  if (homeModeLabel) {
+    homeModeLabel.textContent = next === 'fix' ? 'Fix' : next === 'learn' ? 'Learn' : 'Create';
+  }
+  $$('#homeModeMenu [data-home-mode]').forEach((b) => {
+    b.setAttribute('aria-selected', b.dataset.homeMode === next);
+  });
+  closeHomeMenus();
+}
+
+function renderHomeAttachments() {
+  if (!homeAttachList) return;
+  if (!pendingHomeFiles.length) {
+    homeAttachList.hidden = true;
+    homeAttachList.innerHTML = '';
+    return;
+  }
+  homeAttachList.hidden = false;
+  homeAttachList.innerHTML = pendingHomeFiles.map((f, i) =>
+    `<span class="home-attach-chip"><svg class="i"><use href="#i-file"/></svg>${esc(f.name)}` +
+    `<button type="button" data-home-detach="${i}" aria-label="Remove ${esc(f.name)}"><svg class="i"><use href="#i-x"/></svg></button></span>`
+  ).join('');
+}
+
+function readHomeFiles(fileList) {
+  const list = [...(fileList || [])];
+  if (!list.length) return Promise.resolve();
+  return Promise.all(list.map((file) => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingHomeFiles.push({ name: file.name, src: String(reader.result || '') });
+      resolve();
+    };
+    reader.onerror = () => resolve();
+    reader.readAsText(file);
+  }))).then(() => renderHomeAttachments());
+}
+
+function seedFromHomeIntent(opts = {}) {
+  const intent = opts.mode || homeIntentMode;
+  const attached = opts.attached || [...pendingHomeFiles];
+
+  if (attached.length) {
+    Object.keys(files).forEach((k) => { delete files[k]; });
+    open.length = 0;
+    attached.forEach((f, idx) => {
+      let name = f.name || `upload-${idx + 1}.txt`;
+      if (files[name]) name = `${idx + 1}-${name}`;
+      files[name] = { src: f.src || '' };
+      open.push(name);
+    });
+    active = open[0];
+    return;
+  }
+
+  if (opts.keepChallenge) return;
+
+  if (intent === 'create') {
+    Object.keys(files).forEach((k) => { delete files[k]; });
+    open.length = 0;
+    files['main.py'] = {
+      src: '# CodeDoctor\n# Describe what you want in the Doctor chat — or write code here.\n\ndef main():\n    print("Hello from CodeDoctor")\n\n\nif __name__ == "__main__":\n    main()\n'
+    };
+    open.push('main.py');
+    active = 'main.py';
+    return;
+  }
+
+  if (intent === 'fix') {
+    Object.keys(files).forEach((k) => { delete files[k]; });
+    open.length = 0;
+    files['solution.py'] = {
+      src: '# Paste the code you want fixed here\n\ndef main():\n    pass\n\n\nif __name__ == "__main__":\n    main()\n'
+    };
+    open.push('solution.py');
+    active = 'solution.py';
+    return;
+  }
+
+  // learn — keep a simple readable starter
+  Object.keys(files).forEach((k) => { delete files[k]; });
+  open.length = 0;
+  files['learn.py'] = {
+    src: '# Learning sandbox\n# Ask Doctor to explain any concept in simple words.\n\nprint("Ready to learn")\n'
+  };
+  open.push('learn.py');
+  active = 'learn.py';
+}
+
+function prepareWorkspaceShell() {
+  termLog.innerHTML = '';
+  const stEnv = $('#stEnv');
+  const banner = $('#web-demo-banner');
+  if (isDemoMode()) {
+    if (stEnv) stEnv.textContent = 'Demo · Simulated Python';
+    if (banner) banner.style.display = 'flex';
+    document.body.classList.add('has-demo-banner');
+    term('<strong>CodeDoctor Demo Environment</strong>');
+    term('<span class="dim">Ready to explore.</span>');
+    term('<span class="dim">Click Run to try the sample code.</span>');
+  } else {
+    if (stEnv) stEnv.textContent = 'Python 3.10 Sandbox';
+    if (banner) banner.style.display = 'none';
+    document.body.classList.remove('has-demo-banner');
+    term('<span class="dim">Python 3.10 sandbox ready. Type</span> python ' + esc(active) + ' <span class="dim">or click Run (Ctrl ↵)</span>');
+  }
+  ta.value = files[active]?.src || '';
+  renderCode();
+  renderAll();
+}
+
+function enterWorkspace(opts = {}) {
+  const promptText = (opts.prompt || '').trim();
+  const intent = opts.mode || homeIntentMode;
+  const via = opts.via || 'prompt';
+
+  if (intent === 'learn') setMode('logic');
+  else setMode('complete');
+
+  if (!workspaceEntered) {
+    if (via === 'challenges') {
+      seedFromHomeIntent({ mode: intent, keepChallenge: true, attached: [] });
+    } else {
+      seedFromHomeIntent({ mode: intent, attached: [...pendingHomeFiles] });
+    }
+    prepareWorkspaceShell();
+  } else if (pendingHomeFiles.length) {
+    seedFromHomeIntent({ mode: intent, attached: [...pendingHomeFiles] });
+    prepareWorkspaceShell();
+  }
+
+  pendingHomeFiles.length = 0;
+  renderHomeAttachments();
+  closeHomeMenus();
+
+  document.body.classList.remove('view-home');
+  document.body.classList.add('view-workspace');
+  if (workspaceApp) {
+    workspaceApp.hidden = false;
+    workspaceApp.classList.remove('is-workspace-hidden');
+  }
+  if (homeRoot) {
+    homeRoot.setAttribute('aria-hidden', 'true');
+    const hideHome = () => {
+      homeRoot.hidden = true;
+      homeRoot.style.display = 'none';
+    };
+    // Allow the fade to finish, then fully remove home from the stack.
+    setTimeout(hideHome, 340);
+  }
+  workspaceEntered = true;
+
+  if (via === 'challenges') {
+    loadChallenge(curChallengeIdx);
+  }
+
+  if (promptText) {
+    let framed = promptText;
+    if (intent === 'create') {
+      framed = `Create / build this for me (complete working code when possible):\n\n${promptText}`;
+    } else if (intent === 'fix') {
+      framed = `Fix this problem and explain the root cause clearly:\n\n${promptText}`;
+    } else if (intent === 'learn') {
+      framed = `Explain this in simple words for a beginner. Guide me step by step:\n\n${promptText}`;
+    }
+    setTimeout(() => {
+      ask(framed);
+      if (askBox) askBox.focus({ preventScroll: true });
+    }, 280);
+  } else {
+    setTimeout(() => ta.focus({ preventScroll: true }), 200);
+  }
+}
+
+function updateHomeSendState() {
+  if (!homeSendBtn || !homePrompt) return;
+  homeSendBtn.disabled = !homePrompt.value.trim() && pendingHomeFiles.length === 0;
+}
+
+if (homePrompt) {
+  homePrompt.addEventListener('input', () => {
+    homePrompt.style.height = 'auto';
+    homePrompt.style.height = Math.min(homePrompt.scrollHeight, 180) + 'px';
+    updateHomeSendState();
+  });
+  homePrompt.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (homePromptForm) homePromptForm.requestSubmit();
+    }
+  });
+}
+
+if (homePromptForm) {
+  homePromptForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = (homePrompt && homePrompt.value) || '';
+    if (!text.trim() && !pendingHomeFiles.length) return;
+    if (homeSendBtn) homeSendBtn.classList.add('is-loading');
+    enterWorkspace({ prompt: text, mode: homeIntentMode, via: 'prompt' });
+    if (homePrompt) {
+      homePrompt.value = '';
+      homePrompt.style.height = 'auto';
+    }
+    updateHomeSendState();
+    if (homeSendBtn) homeSendBtn.classList.remove('is-loading');
+  });
+}
+
+const homeAttachBtn = $('#homeAttachBtn');
+if (homeAttachBtn) {
+  homeAttachBtn.addEventListener('click', () => homeFileInput && homeFileInput.click());
+}
+
+if (homeFileInput) {
+  homeFileInput.addEventListener('change', async () => {
+    await readHomeFiles(homeFileInput.files);
+    homeFileInput.value = '';
+    updateHomeSendState();
+  });
+}
+
+if (homeAttachList) {
+  homeAttachList.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-home-detach]');
+    if (!btn) return;
+    const idx = Number(btn.dataset.homeDetach);
+    if (!Number.isNaN(idx)) {
+      pendingHomeFiles.splice(idx, 1);
+      renderHomeAttachments();
+      updateHomeSendState();
+    }
+  });
+}
+
+if (homeModeBtn) {
+  homeModeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = homeModeMenu && homeModeMenu.hidden;
+    closeHomeMenus();
+    if (open && homeModeMenu) {
+      homeModeMenu.hidden = false;
+      homeModeBtn.setAttribute('aria-expanded', 'true');
+      homeModeBtn.classList.add('is-open');
+    }
+  });
+}
+
+if (homeModeMenu) {
+  homeModeMenu.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-home-mode]');
+    if (!btn) return;
+    setHomeIntentMode(btn.dataset.homeMode);
+  });
+}
+
+if (homeModelBtn) {
+  homeModelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = homeModelMenu && homeModelMenu.hidden;
+    closeHomeMenus();
+    if (open && homeModelMenu) {
+      homeModelMenu.hidden = false;
+      homeModelBtn.setAttribute('aria-expanded', 'true');
+      homeModelBtn.classList.add('is-open');
+    }
+  });
+}
+
+if (homeModelMenu) {
+  homeModelMenu.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-home-model]');
+    if (!btn) return;
+    activeModel = btn.dataset.homeModel;
+    syncModelLabels();
+    closeHomeMenus();
+  });
+}
+
+if (homeRoot) {
+  homeRoot.addEventListener('click', (e) => {
+    const nav = e.target.closest('[data-home-nav]');
+    if (nav) {
+      const dest = nav.dataset.homeNav;
+      if (dest === 'challenges') enterWorkspace({ via: 'challenges', mode: homeIntentMode });
+      else enterWorkspace({ via: 'workspace', mode: homeIntentMode });
+      return;
+    }
+    if (!e.target.closest('.home-mode-menu, .home-model-menu, #homeModeBtn, #homeModelBtn')) {
+      closeHomeMenus();
+    }
+  });
+}
+
+const homeNewBtn = $('#homeNewBtn');
+if (homeNewBtn) {
+  homeNewBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (homePrompt) {
+      homePrompt.value = '';
+      homePrompt.style.height = 'auto';
+      homePrompt.focus();
+    }
+    pendingHomeFiles.length = 0;
+    renderHomeAttachments();
+    updateHomeSendState();
+    setHomeIntentMode('create');
+  });
+}
+
 /* ---------- boot ---------- */
 $('#snippetList').innerHTML = SNIPPETS.map((s, i) =>
   `<li><button class="list-item" data-snippet="${i}">${icon('code')}${s.name}<span class="sub">${s.key}</span></button></li>`).join('');
 $('#templateList').innerHTML = TEMPLATES.map((s, i) =>
   `<li><button class="list-item" data-template="${i}">${icon('layout')}${s.name}<span class="sub">${s.desc}</span></button></li>`).join('');
 
+// Stay on home gate at boot — do not auto-focus editor or dump terminal noise yet.
 ta.value = files[active]?.src || '';
-// Always start with a clean terminal — never restore failed exec logs / auto-run.
 termLog.innerHTML = '';
-const stEnv = $('#stEnv');
-const banner = $('#web-demo-banner');
-if (isDemoMode()) {
-  if (stEnv) stEnv.textContent = 'Demo · Simulated Python';
-  if (banner) banner.style.display = '';
-  term('<strong>CodeDoctor Demo Environment</strong>');
-  term('<span class="dim">Ready to explore.</span>');
-  term('<span class="dim">Click Run to try the sample code.</span>');
-} else {
-  if (stEnv) stEnv.textContent = 'Python 3.10 Sandbox';
-  if (banner) banner.style.display = 'none';
-  term('<span class="dim">Python 3.10 sandbox ready. Type</span> python solution.py <span class="dim">or click Run (Ctrl ↵)</span>');
-}
 renderCode(); renderAll(); setMode('complete');
+setHomeIntentMode('create');
+syncModelLabels();
+updateHomeSendState();
+{
+  const banner = $('#web-demo-banner');
+  if (isDemoMode()) {
+    if (banner) banner.style.display = 'flex';
+    document.body.classList.add('has-demo-banner');
+  } else if (banner) {
+    banner.style.display = 'none';
+  }
+}
 // No auto-execution on open/reload. Fetch models only when a backend is expected.
 if (!isDemoMode()) loadModels();
-// History loads on demand when the History tab is opened — avoids API spam on boot.
-ta.focus({ preventScroll: true });
+if (homePrompt) homePrompt.focus({ preventScroll: true });
 })();
