@@ -8,6 +8,101 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const icon = id => `<svg class="i"><use href="#i-${id}"/></svg>`;
 
+/* ---------- API base + safe JSON ---------- */
+/** Same-origin on :8000/:3000; otherwise FastAPI default. Override via localStorage codedoctor_api_base. */
+function getApiBase() {
+  try {
+    const stored = localStorage.getItem('codedoctor_api_base');
+    if (stored != null) return String(stored).replace(/\/$/, '');
+  } catch { /* ignore */ }
+  const port = String(location.port || '');
+  if (port === '8000' || port === '3000') return '';
+  return 'http://localhost:8000';
+}
+
+function apiUrl(path) {
+  const base = getApiBase();
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return base ? `${base}${p}` : p;
+}
+
+/**
+ * Read a response as JSON only when content looks like JSON.
+ * Prevents the classic `Unexpected token '<'` when an HTML error/SPA page is returned.
+ */
+async function parseApiJson(res, label = 'API') {
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  let text = '';
+  try {
+    text = await res.text();
+  } catch {
+    throw new Error(`Network error while reading ${label} response.`);
+  }
+
+  const trimmed = text.trim();
+  const looksHtml = trimmed.startsWith('<') || contentType.includes('text/html');
+  const looksJson =
+    contentType.includes('application/json') ||
+    trimmed.startsWith('{') ||
+    trimmed.startsWith('[');
+
+  if (looksHtml || (!looksJson && trimmed)) {
+    const origin = getApiBase() || location.origin;
+    throw new Error(
+      `${label} returned HTML instead of JSON (HTTP ${res.status}). ` +
+      `The execution API was not reached at ${origin}. ` +
+      `Start the backend (run_app.bat or: python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000) ` +
+      `and open http://localhost:8000 — or set localStorage.codedoctor_api_base to your API URL.`
+    );
+  }
+
+  if (!trimmed) {
+    throw new Error(`${label} returned an empty response (HTTP ${res.status}).`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(trimmed);
+  } catch {
+    throw new Error(`${label} returned invalid JSON (HTTP ${res.status}).`);
+  }
+
+  if (!res.ok) {
+    const detail = data.detail ?? data.error ?? data.message ?? data.stderr;
+    let msg;
+    if (typeof detail === 'string') msg = detail;
+    else if (detail && typeof detail === 'object') {
+      msg = detail.message || detail.error || JSON.stringify(detail);
+    } else {
+      msg = `${label} failed with HTTP ${res.status}`;
+    }
+    if (res.status === 408 || data.timed_out || data.execution_status === 'timeout') {
+      throw new Error(`Sandbox timeout: ${msg}`);
+    }
+    if (res.status >= 500) {
+      throw new Error(`Sandbox failure: ${msg}`);
+    }
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
+async function apiFetch(path, options) {
+  const url = apiUrl(path);
+  let res;
+  try {
+    res = await fetch(url, options);
+  } catch (err) {
+    const origin = getApiBase() || location.origin;
+    throw new Error(
+      `Network error reaching ${url}: ${err && err.message ? err.message : err}. ` +
+      `Is the CodeDoctor API running at ${origin}?`
+    );
+  }
+  return res;
+}
+
 /* ---------- challenges data ---------- */
 const CHALLENGES = [
   {
@@ -384,7 +479,7 @@ async function run(from = 'ui') {
   }
 
   try {
-    const res = await fetch('/api/execute', {
+    const res = await apiFetch('/api/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -395,12 +490,16 @@ async function run(from = 'ui') {
         stdin_input: ''
       })
     });
-    const data = await res.json();
+    const data = await parseApiJson(res, 'Execution API');
 
     lastStdout = data.stdout || '';
     lastStderr = data.stderr || '';
     lastExitCode = data.exit_code ?? 0;
     lastExecutionTime = data.execution_time_ms ?? 0;
+
+    if (data.timed_out || data.execution_status === 'timeout') {
+      term(`<span class="bad">Sandbox timeout: execution exceeded the time limit.</span>`);
+    }
 
     if (data.stdout) {
       const outLines = data.stdout.trim().split('\n');
@@ -411,7 +510,7 @@ async function run(from = 'ui') {
       errLines.forEach(l => term(`<span class="bad">${esc(l)}</span>`));
     }
 
-    const allPassed = data.exit_code === 0 && !data.stderr;
+    const allPassed = data.exit_code === 0 && !data.stderr && !data.timed_out;
     const curCases = CHALLENGES[curChallengeIdx]?.cases || [];
 
     // Parse runtime error if failed
@@ -427,7 +526,7 @@ async function run(from = 'ui') {
       } else {
         lastRuntimeError = {
           line: 1,
-          type: 'Execution Error',
+          type: data.timed_out ? 'TimeoutError' : 'Execution Error',
           message: data.error_type || 'Script failed',
           details: data.stderr
         };
@@ -446,7 +545,16 @@ async function run(from = 'ui') {
       term(`<span class="bad">Process exited with code ${data.exit_code}</span> <span class="dim">in ${(data.execution_time_ms / 1000).toFixed(3)}s</span>`);
     }
   } catch (err) {
-    term(`<span class="bad">Execution error: ${esc(err.message)}</span>`);
+    lastStdout = '';
+    lastStderr = err.message || String(err);
+    lastExitCode = -1;
+    lastRuntimeError = {
+      line: 1,
+      type: 'API Error',
+      message: err.message || String(err),
+      details: lastStderr
+    };
+    term(`<span class="bad">Execution error: ${esc(err.message || err)}</span>`);
   } finally {
     running = false;
     $('.run').classList.remove('is-running'); $('#runLabel').textContent = 'Run';
@@ -679,16 +787,12 @@ async function callAiDoctor(userPromptText) {
   };
 
   try {
-    const res = await fetch('/api/diagnose', {
+    const res = await apiFetch('/api/diagnose', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.detail || `Server returned ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await parseApiJson(res, 'Diagnosis API');
     return renderMarkdownBody(data.diagnosis || 'No response returned.');
   } catch (err) {
     return `<span class="bad">AI diagnosis failed: ${esc(err.message)}</span><br><span class="dim">Try again or check server logs.</span>`;
@@ -737,9 +841,8 @@ function closeMenu() { $('#modelList').hidden = true; $('#modelBtn').setAttribut
 
 async function loadModels() {
   try {
-    const res = await fetch('/api/models');
-    if (!res.ok) return;
-    const data = await res.json();
+    const res = await apiFetch('/api/models');
+    const data = await parseApiJson(res, 'Models API');
     if (data.models && data.models.length) {
       activeModel = data.default || data.models[0].id;
       $('#modelName').textContent = activeModel;
@@ -756,9 +859,9 @@ async function loadModels() {
 
 async function loadHistory() {
   try {
-    const res = await fetch('/api/history');
-    if (!res.ok) return;
-    historyCache = await res.json();
+    const res = await apiFetch('/api/history');
+    const data = await parseApiJson(res, 'History API');
+    historyCache = Array.isArray(data) ? data : [];
     if (!historyCache.length) {
       histPane.innerHTML = '<p class="dim">No diagnosis history stored yet.</p>';
       return;

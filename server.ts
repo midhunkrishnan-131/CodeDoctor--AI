@@ -43,11 +43,28 @@ app.get('/api/models', (req, res) => {
 
 app.post('/api/execute', async (req, res) => {
   try {
-    const { source_code, timeout, stdin_input } = req.body;
-    const result = await runPythonCode(source_code || '', Number(timeout) || 5.0, stdin_input || '');
-    res.json(result);
+    const { source_code, timeout, stdin_input, filename, files } = req.body || {};
+    const result = await runPythonCode(
+      source_code || '',
+      Number(timeout) || 5.0,
+      stdin_input || '',
+      filename || 'solution.py',
+      files && typeof files === 'object' ? files : {}
+    );
+    // Sandbox always returns structured JSON; 500 only for runner infra failure
+    const status = result.error_type === 'RunnerError' ? 500 : 200;
+    res.status(status).json(result);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message || 'Sandbox execution failed',
+      stdout: '',
+      stderr: err.message || 'Sandbox execution failed',
+      execution_status: 'error',
+      exit_code: -1,
+      execution_time_ms: 0,
+      timed_out: false,
+      syntax_valid: false,
+    });
   }
 });
 

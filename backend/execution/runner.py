@@ -10,11 +10,18 @@ import json
 import tempfile
 import subprocess
 import traceback
+import shutil
 
 MAX_OUTPUT_CHARS = 50000
 DEFAULT_TIMEOUT_SEC = 5.0
 
-def execute_python_code(code: str, timeout: float = DEFAULT_TIMEOUT_SEC, stdin_input: str = "") -> dict:
+def execute_python_code(
+    code: str,
+    timeout: float = DEFAULT_TIMEOUT_SEC,
+    stdin_input: str = "",
+    filename: str = "solution.py",
+    files: dict = None
+) -> dict:
     start_time = time.perf_counter()
     
     # Quick syntax pre-check using compile
@@ -32,11 +39,21 @@ def execute_python_code(code: str, timeout: float = DEFAULT_TIMEOUT_SEC, stdin_i
             "text": e.text.strip() if e.text else ""
         }
 
-    # If pure syntax error, we can still run it to produce realistic python stderr, or report directly
     temp_dir = tempfile.mkdtemp(prefix="codedoctor_exec_")
-    script_path = os.path.join(temp_dir, "solution.py")
+    target_filename = os.path.basename(filename).strip() or "solution.py"
+    script_path = os.path.join(temp_dir, target_filename)
     
     try:
+        # Write all accompanying files if provided
+        if files and isinstance(files, dict):
+            for fname, fcontent in files.items():
+                clean_name = os.path.basename(fname).strip()
+                if clean_name and clean_name != target_filename:
+                    fpath = os.path.join(temp_dir, clean_name)
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        f.write(fcontent or "")
+
+        # Always write the main target file with current editor code
         with open(script_path, "w", encoding="utf-8") as f:
             f.write(code)
 
@@ -139,10 +156,8 @@ def execute_python_code(code: str, timeout: float = DEFAULT_TIMEOUT_SEC, stdin_i
     finally:
         # Cleanup temp directory
         try:
-            if os.path.exists(script_path):
-                os.remove(script_path)
             if os.path.exists(temp_dir):
-                os.rmdir(temp_dir)
+                shutil.rmtree(temp_dir, ignore_errors=True)
         except Exception:
             pass
 
@@ -158,7 +173,11 @@ if __name__ == "__main__":
                 code = payload.get("code", "")
                 timeout = float(payload.get("timeout", DEFAULT_TIMEOUT_SEC))
                 stdin_val = payload.get("stdin", "")
-                result = execute_python_code(code, timeout, stdin_val)
+                filename = payload.get("filename", "solution.py") or "solution.py"
+                files = payload.get("files") or {}
+                result = execute_python_code(
+                    code, timeout, stdin_val, filename=filename, files=files
+                )
                 print(json.dumps(result))
             else:
                 test_res = execute_python_code("print('Hello from CodeDoctor AI execution engine!')")
