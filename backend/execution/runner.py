@@ -173,11 +173,7 @@ if __name__ == "__main__":
                 code = payload.get("code", "")
                 timeout = float(payload.get("timeout", DEFAULT_TIMEOUT_SEC))
                 stdin_val = payload.get("stdin", "")
-                filename = payload.get("filename", "solution.py") or "solution.py"
-                files = payload.get("files") or {}
-                result = execute_python_code(
-                    code, timeout, stdin_val, filename=filename, files=files
-                )
+                result = execute_python_code(code, timeout, stdin_val)
                 print(json.dumps(result))
             else:
                 test_res = execute_python_code("print('Hello from CodeDoctor AI execution engine!')")

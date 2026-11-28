@@ -3,8 +3,20 @@ Execution Service for CodeDoctor AI
 """
 from backend.execution.runner import execute_python_code
 
-def run_code(source_code: str, timeout: float = 5.0, stdin_input: str = "") -> dict:
-    raw_res = execute_python_code(source_code, timeout=timeout, stdin_input=stdin_input)
+def run_code(
+    source_code: str,
+    timeout: float = 5.0,
+    stdin_input: str = "",
+    filename: str = "solution.py",
+    files: dict = None
+) -> dict:
+    raw_res = execute_python_code(
+        code=source_code,
+        timeout=timeout,
+        stdin_input=stdin_input,
+        filename=filename,
+        files=files or {}
+    )
     
     # Map to standardized response
     status = "success" if raw_res["success"] else ("timeout" if raw_res["timed_out"] else "error")

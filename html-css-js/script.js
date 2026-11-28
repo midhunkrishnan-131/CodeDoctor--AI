@@ -8,6 +8,324 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const icon = id => `<svg class="i"><use href="#i-${id}"/></svg>`;
 
+/* ---------- environment / API ---------- */
+/**
+ * Modes:
+ *  - demo: GitHub Pages / static / file:// — offline simulation, no API calls
+ *  - local: loopback or known dev ports — use same-origin or local FastAPI
+ *  - connected: explicit localStorage.codedoctor_api_base URL
+ * Override: localStorage.codedoctor_api_base = "https://api…" | "" | "demo"
+ */
+const ENV = (() => {
+  let stored = null;
+  try { stored = localStorage.getItem('codedoctor_api_base'); } catch { /* ignore */ }
+
+  // Drop corrupted terminal caches from older builds (keep unrelated keys).
+  try {
+    ['codedoctor_term_log', 'codedoctor_terminal', 'codedoctor_term_history', 'codedoctor_last_exec'].forEach((k) => {
+      const v = localStorage.getItem(k);
+      if (v && /Unexpected token|not valid JSON|<html|Execution error/i.test(v)) {
+        localStorage.removeItem(k);
+      }
+    });
+  } catch { /* ignore */ }
+
+  const host = location.hostname || '';
+  const port = String(location.port || '');
+  const isPages = /\.github\.io$/i.test(host);
+  const isFile = location.protocol === 'file:';
+  const isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  const s = stored == null ? null : String(stored).trim();
+
+  if (s === 'demo' || s === 'offline') {
+    return { mode: 'demo', apiBase: null, label: 'Browser demo' };
+  }
+
+  // Static hosts never call loopback — even if a leftover localStorage override points there.
+  if (isPages || isFile) {
+    if (s && !/^(https?:\/\/)?(localhost|127\.0\.0\.1|\[::1\])\b/i.test(s)) {
+      return { mode: 'connected', apiBase: s.replace(/\/$/, ''), label: 'Connected backend' };
+    }
+    return { mode: 'demo', apiBase: null, label: 'Browser demo' };
+  }
+
+  if (s) {
+    return { mode: 'connected', apiBase: s.replace(/\/$/, ''), label: 'Connected backend' };
+  }
+  // Empty string override = same-origin API.
+  if (stored === '') {
+    return { mode: 'local', apiBase: '', label: 'Local backend' };
+  }
+  if (port === '8000' || port === '3000' || port === '5173') {
+    return { mode: 'local', apiBase: '', label: 'Local backend' };
+  }
+  if (isLoopback) {
+    return { mode: 'local', apiBase: 'http://localhost:8000', label: 'Local backend' };
+  }
+  // Public/static host without an explicit API → offline demo (do not call localhost).
+  return { mode: 'demo', apiBase: null, label: 'Browser demo' };
+})();
+
+function isDemoMode() { return ENV.mode === 'demo'; }
+function getApiBase() { return ENV.apiBase == null ? '' : ENV.apiBase; }
+
+function apiUrl(path) {
+  const base = getApiBase();
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return base ? `${base}${p}` : p;
+}
+
+function ApiUserError(userMessage, technical) {
+  const err = new Error(userMessage);
+  err.userMessage = userMessage;
+  err.technical = technical || '';
+  err.isApiUserError = true;
+  return err;
+}
+
+/**
+ * Read a response as JSON only when content looks like JSON.
+ * Never surfaces raw `Unexpected token '<'` to the user.
+ */
+async function parseApiJson(res, label = 'API') {
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  let text = '';
+  try {
+    text = await res.text();
+  } catch {
+    throw ApiUserError(
+      'Could not read the server response.',
+      `Network error while reading ${label} body.`
+    );
+  }
+
+  const trimmed = text.trim();
+  const looksHtml = trimmed.startsWith('<!') || trimmed.startsWith('<html') || contentType.includes('text/html');
+  const looksJson =
+    contentType.includes('application/json') ||
+    trimmed.startsWith('{') ||
+    trimmed.startsWith('[');
+
+  if (looksHtml || (!looksJson && trimmed)) {
+    const origin = getApiBase() || location.origin;
+    throw ApiUserError(
+      'Python execution isn\'t available from this page — the API returned a web page instead of JSON.',
+      `${label} HTTP ${res.status} from ${origin}${res.url ? ` (${res.url})` : ''}. ` +
+      `Body starts with: ${trimmed.slice(0, 120).replace(/\s+/g, ' ')}`
+    );
+  }
+
+  if (!trimmed) {
+    throw ApiUserError(
+      'The execution service returned an empty response.',
+      `${label} HTTP ${res.status}, empty body.`
+    );
+  }
+
+  let data;
+  try {
+    data = JSON.parse(trimmed);
+  } catch (e) {
+    throw ApiUserError(
+      'The execution service returned invalid data.',
+      `${label} HTTP ${res.status}: ${e && e.message ? e.message : 'JSON parse failed'}. ` +
+      `Body starts with: ${trimmed.slice(0, 120).replace(/\s+/g, ' ')}`
+    );
+  }
+
+  if (!res.ok) {
+    const detail = data.detail ?? data.error ?? data.message ?? data.stderr;
+    let msg;
+    if (typeof detail === 'string') msg = detail;
+    else if (detail && typeof detail === 'object') {
+      msg = detail.message || detail.error || JSON.stringify(detail);
+    } else {
+      msg = `${label} failed with HTTP ${res.status}`;
+    }
+    if (res.status === 408 || data.timed_out || data.execution_status === 'timeout') {
+      throw ApiUserError('Sandbox timeout: execution exceeded the time limit.', msg);
+    }
+    if (res.status >= 500) {
+      throw ApiUserError('The Python sandbox failed. Try again or check the backend logs.', msg);
+    }
+    throw ApiUserError(msg, `${label} HTTP ${res.status}`);
+  }
+
+  return data;
+}
+
+async function apiFetch(path, options) {
+  if (isDemoMode()) {
+    throw ApiUserError(
+      'Python execution isn\'t available in this browser demo.',
+      `Skipped fetch to ${path} while ENV.mode=demo.`
+    );
+  }
+  const url = apiUrl(path);
+  let res;
+  try {
+    res = await fetch(url, options);
+  } catch (err) {
+    const origin = getApiBase() || location.origin;
+    throw ApiUserError(
+      'Could not reach the Python backend. Connect a local API or stay in demo mode.',
+      `Network error reaching ${url} (expected API at ${origin}): ${err && err.message ? err.message : err}`
+    );
+  }
+  return res;
+}
+
+function normalizePy(src) {
+  return String(src || '').replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').trim();
+}
+
+/** Evaluate a single simple print(...) call for demo mode. Returns string or null if unsupported. */
+function demoEvalPrint(call) {
+  const m = String(call).match(/^print\s*\((.*)\)\s*$/);
+  if (!m) return null;
+  const argsSrc = m[1].trim();
+  if (!argsSrc) return '';
+
+  const args = [];
+  let i = 0;
+  const s = argsSrc;
+  while (i < s.length) {
+    while (i < s.length && /[\s,]/.test(s[i])) i++;
+    if (i >= s.length) break;
+    const ch = s[i];
+    if (ch === '"' || ch === "'") {
+      let out = '';
+      const q = ch; i++;
+      while (i < s.length) {
+        if (s[i] === '\\' && i + 1 < s.length) { out += s[i + 1]; i += 2; continue; }
+        if (s[i] === q) { i++; break; }
+        out += s[i++];
+      }
+      args.push(out);
+      continue;
+    }
+    if (s[i] === '[') {
+      let depth = 0; let start = i;
+      while (i < s.length) {
+        if (s[i] === '[') depth++;
+        else if (s[i] === ']') { depth--; if (depth === 0) { i++; break; } }
+        i++;
+      }
+      const lit = s.slice(start, i);
+      try {
+        args.push(JSON.stringify(JSON.parse(lit.replace(/'/g, '"'))).replace(/,/g, ', '));
+      } catch { return null; }
+      continue;
+    }
+    if (s[i] === '(') return null;
+    const start = i;
+    while (i < s.length && s[i] !== ',') i++;
+    const tok = s.slice(start, i).trim();
+    if (/^-?\d+(\.\d+)?$/.test(tok) || tok === 'True' || tok === 'False' || tok === 'None') {
+      args.push(tok === 'True' ? 'True' : tok === 'False' ? 'False' : tok === 'None' ? 'None' : tok);
+      continue;
+    }
+    return null;
+  }
+  return args.join(' ');
+}
+
+function demoCannedChallenge(filename) {
+  const ch = CHALLENGES[curChallengeIdx];
+  if (!ch) return null;
+  const src = files[filename]?.src || '';
+  if (filename === 'solution.py' && normalizePy(src) === normalizePy(ch.solution)) {
+    if (ch.id === 'two-sum') {
+      return { stdout: 'two_sum([2, 7, 11, 15], 9) => [0, 1]\n', exit_code: 0 };
+    }
+    if (ch.id === 'off-by-one') {
+      return { stdout: 'List: [14, 3, 27, 8, 42, 19]\nMaximum found: 42\n', exit_code: 0 };
+    }
+    if (ch.id === 'zero-division') {
+      return {
+        stdout: 'Valid scores [85, 90, 78]: 84.33\nEmpty list result: 0.0\n',
+        exit_code: 0
+      };
+    }
+  }
+  if (filename === 'test_cases.py' && normalizePy(src) === normalizePy(ch.tests)
+      && normalizePy(files['solution.py']?.src || '') === normalizePy(ch.solution)) {
+    if (ch.id === 'two-sum') {
+      return {
+        stdout:
+          'two_sum([2, 7, 11, 15], 9) => [0, 1] (expected [0, 1])\n' +
+          'two_sum([3, 2, 4], 6) => [1, 2] (expected [1, 2])\n' +
+          'two_sum([4, 5, 1, 9], 9) => [0, 1] (expected [0, 1])\n' +
+          'two_sum([1, 2], 7) => [] (expected [])\n' +
+          'two_sum([6, 2, 3, 1], 5) => [1, 2] (expected [1, 2])\n' +
+          'All Two Sum tests passed!\n',
+        exit_code: 0
+      };
+    }
+    if (ch.id === 'off-by-one') {
+      return { stdout: 'All maximum checks passed!\n', exit_code: 0 };
+    }
+    if (ch.id === 'zero-division') {
+      return { stdout: 'All average tests passed!\n', exit_code: 0 };
+    }
+  }
+  return null;
+}
+
+/**
+ * Limited offline Python simulation for GitHub Pages demo mode.
+ * Supports simple print-only scripts and stock challenge samples — not a full interpreter.
+ */
+function simulatePythonExecution(source, filename) {
+  const canned = demoCannedChallenge(filename);
+  if (canned) {
+    return { ...canned, simulated: true, unsupported: false, canned: true };
+  }
+
+  const stripped = String(source || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/^\s*#.*$/gm, '')
+    .replace(/"""[\s\S]*?"""/g, '')
+    .replace(/'''[\s\S]*?'''/g, '')
+    .trim();
+
+  if (!stripped) {
+    return { stdout: '', exit_code: 0, simulated: true, unsupported: false };
+  }
+
+  const lines = stripped.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length && lines.every((l) => /^print\s*\(/.test(l))) {
+    const out = [];
+    for (const line of lines) {
+      const val = demoEvalPrint(line);
+      if (val == null) {
+        return {
+          unsupported: true,
+          simulated: true,
+          exit_code: 1,
+          stdout: '',
+          message: 'Demo mode cannot execute this Python program yet. Connect a Python backend for real execution.'
+        };
+      }
+      out.push(val);
+    }
+    return {
+      stdout: out.length ? out.join('\n') + '\n' : '',
+      exit_code: 0,
+      simulated: true,
+      unsupported: false
+    };
+  }
+
+  return {
+    unsupported: true,
+    simulated: true,
+    exit_code: 1,
+    stdout: '',
+    message: 'Demo mode cannot execute this Python program yet. Connect a Python backend for real execution.'
+  };
+}
+
 /* ---------- challenges data ---------- */
 const CHALLENGES = [
   {
@@ -370,21 +688,119 @@ function term(h) {
   consoleBody.scrollTop = consoleBody.scrollHeight;
 }
 
-/* ---------- execution via backend sandbox ---------- */
+function termFriendlyError(userMessage, technical) {
+  term(`<span class="bad">${esc(userMessage)}</span>`);
+  if (technical) {
+    term(
+      `<details style="margin:4px 0 8px"><summary class="dim" style="cursor:pointer">Technical Details</summary>` +
+      `<pre class="snip" style="margin-top:6px;white-space:pre-wrap">${esc(technical)}</pre></details>`
+    );
+  }
+}
+
+function applyExecutionResult(data, { simulated = false, mapChallengeCases = true } = {}) {
+  lastStdout = data.stdout || '';
+  lastStderr = data.stderr || '';
+  lastExitCode = data.exit_code ?? 0;
+  lastExecutionTime = data.execution_time_ms ?? (simulated ? 1 : 0);
+
+  if (data.timed_out || data.execution_status === 'timeout') {
+    term(`<span class="bad">Sandbox timeout: execution exceeded the time limit.</span>`);
+  }
+
+  if (data.stdout) {
+    data.stdout.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n').forEach((l) => term(esc(l)));
+  }
+  if (data.stderr) {
+    data.stderr.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n').forEach((l) => {
+      term(`<span class="bad">${esc(l)}</span>`);
+    });
+  }
+
+  const allPassed = data.exit_code === 0 && !data.stderr && !data.timed_out;
+  const curCases = CHALLENGES[curChallengeIdx]?.cases || [];
+
+  if (!allPassed && data.stderr) {
+    const errMatch = data.stderr.match(/(?:File "[^"]+", line (\d+)[^\n]*\n(?:[^\n]*\n)*?([A-Za-z]+Error|Exception):\s*([^\n]+))/);
+    if (errMatch) {
+      lastRuntimeError = {
+        line: parseInt(errMatch[1], 10),
+        type: errMatch[2],
+        message: errMatch[3],
+        details: data.stderr
+      };
+    } else {
+      lastRuntimeError = {
+        line: 1,
+        type: data.timed_out ? 'TimeoutError' : 'Execution Error',
+        message: data.error_type || 'Script failed',
+        details: data.stderr
+      };
+    }
+  } else {
+    lastRuntimeError = null;
+  }
+
+  if (mapChallengeCases && curCases.length) {
+    lastRun = curCases.map((t) => ({
+      ...t, pass: allPassed, got: allPassed ? t.want : (data.error_type || 'Error'),
+    }));
+  } else {
+    lastRun = null;
+  }
+
+  const timing = `${(lastExecutionTime / 1000).toFixed(3)}s`;
+  if (allPassed) {
+    term(
+      `<span class="ok">Process exited with code 0</span> ` +
+      `<span class="dim">in ${timing}${simulated ? ' · simulated demo output' : ''}</span>`
+    );
+  } else {
+    term(
+      `<span class="bad">Process exited with code ${data.exit_code}</span> ` +
+      `<span class="dim">in ${timing}${simulated ? ' · simulated demo' : ''}</span>`
+    );
+  }
+}
+
+/* ---------- execution via backend sandbox (or offline demo) ---------- */
 async function run(from = 'ui') {
   if (running) return;
+  // Only explicit user actions call run() — never from boot/init.
   running = true;
   $('.run').classList.add('is-running'); $('#runLabel').textContent = 'Running';
   const targetScript = active;
   if (from !== 'terminal') term(`<span class="prompt">$</span> python ${esc(targetScript)}`);
 
-  const allFilesMap = {};
-  for (const [name, obj] of Object.entries(files)) {
-    allFilesMap[name] = obj.src || '';
-  }
-
   try {
-    const res = await fetch('/api/execute', {
+    if (isDemoMode()) {
+      await sleep(120);
+      const sim = simulatePythonExecution(files[targetScript]?.src || '', targetScript);
+      if (sim.unsupported) {
+        lastStdout = '';
+        lastStderr = sim.message || '';
+        lastExitCode = 1;
+        lastRuntimeError = null;
+        lastRun = null;
+        term(`<span class="bad">${esc(sim.message)}</span>`);
+        term(`<span class="dim">Tip: try print("Hello World") or the stock challenge sample.</span>`);
+        return;
+      }
+      applyExecutionResult({
+        stdout: sim.stdout || '',
+        stderr: '',
+        exit_code: sim.exit_code ?? 0,
+        execution_time_ms: 1
+      }, { simulated: true, mapChallengeCases: !!sim.canned });
+      return;
+    }
+
+    const allFilesMap = {};
+    for (const [name, obj] of Object.entries(files)) {
+      allFilesMap[name] = obj.src || '';
+    }
+
+    const res = await apiFetch('/api/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -395,58 +811,34 @@ async function run(from = 'ui') {
         stdin_input: ''
       })
     });
-    const data = await res.json();
-
-    lastStdout = data.stdout || '';
-    lastStderr = data.stderr || '';
-    lastExitCode = data.exit_code ?? 0;
-    lastExecutionTime = data.execution_time_ms ?? 0;
-
-    if (data.stdout) {
-      const outLines = data.stdout.trim().split('\n');
-      outLines.forEach(l => term(esc(l)));
-    }
-    if (data.stderr) {
-      const errLines = data.stderr.trim().split('\n');
-      errLines.forEach(l => term(`<span class="bad">${esc(l)}</span>`));
-    }
-
-    const allPassed = data.exit_code === 0 && !data.stderr;
-    const curCases = CHALLENGES[curChallengeIdx]?.cases || [];
-
-    // Parse runtime error if failed
-    if (!allPassed && data.stderr) {
-      const errMatch = data.stderr.match(/(?:File "[^"]+", line (\d+)[^\n]*\n(?:[^\n]*\n)*?([A-Za-z]+Error|Exception):\s*([^\n]+))/);
-      if (errMatch) {
-        lastRuntimeError = {
-          line: parseInt(errMatch[1], 10),
-          type: errMatch[2],
-          message: errMatch[3],
-          details: data.stderr
-        };
-      } else {
-        lastRuntimeError = {
-          line: 1,
-          type: 'Execution Error',
-          message: data.error_type || 'Script failed',
-          details: data.stderr
-        };
-      }
-    } else {
-      lastRuntimeError = null;
-    }
-
-    lastRun = curCases.map((t) => ({
-      ...t, pass: allPassed, got: allPassed ? t.want : (data.error_type || 'Error'),
-    }));
-
-    if (allPassed) {
-      term(`<span class="ok">Process exited with code 0</span> <span class="dim">in ${(data.execution_time_ms / 1000).toFixed(3)}s</span>`);
-    } else {
-      term(`<span class="bad">Process exited with code ${data.exit_code}</span> <span class="dim">in ${(data.execution_time_ms / 1000).toFixed(3)}s</span>`);
-    }
+    const data = await parseApiJson(res, 'Execution API');
+    applyExecutionResult(data, { simulated: false });
   } catch (err) {
-    term(`<span class="bad">Execution error: ${esc(err.message)}</span>`);
+    const userMsg = err && err.userMessage
+      ? err.userMessage
+      : (isDemoMode()
+        ? 'Python execution isn\'t available in this browser demo.'
+        : 'Python execution failed. Check that a backend is running.');
+    const technical = (err && err.technical) || (err && err.message) || String(err);
+    // Never show raw JSON parse crashes as the primary message.
+    const safeUser = /Unexpected token/i.test(userMsg)
+      ? 'Python execution isn\'t available in this browser demo.'
+      : userMsg;
+    const tip = isDemoMode() || /isn\'t available|could not reach|web page instead/i.test(safeUser)
+      ? 'Connect a Python backend to execute code, or use the demo mode to explore the editor.'
+      : '';
+
+    lastStdout = '';
+    lastStderr = [safeUser, tip, technical].filter(Boolean).join('\n');
+    lastExitCode = -1;
+    lastRuntimeError = {
+      line: 1,
+      type: 'API Error',
+      message: safeUser,
+      details: technical
+    };
+    termFriendlyError(safeUser, technical);
+    if (tip) term(`<span class="dim">${esc(tip)}</span>`);
   } finally {
     running = false;
     $('.run').classList.remove('is-running'); $('#runLabel').textContent = 'Run';
@@ -613,8 +1005,8 @@ function applyFix(customCode) {
   hint = 1;
   ta.value = files[active]?.src || '';
   renderCode(); renderAll();
-  say('doc', `Applied fix to <code>${esc(targetFile)}</code>. Running tests...`);
-  run();
+  say('doc', `Applied fix to <code>${esc(targetFile)}</code>. ${isDemoMode() ? 'Ready — click Run to verify.' : 'Running tests...'}`);
+  if (!isDemoMode()) run();
 }
 
 function say(role, html) {
@@ -678,20 +1070,33 @@ async function callAiDoctor(userPromptText) {
     model: activeModel
   };
 
+  if (isDemoMode()) {
+    return (
+      `<span class="dim">AI diagnosis needs a connected backend.</span><br>` +
+      `<span class="dim">This browser demo can explore the editor and run supported sample programs offline. ` +
+      `Run locally with the API for Doctor features.</span>`
+    );
+  }
+
   try {
-    const res = await fetch('/api/diagnose', {
+    const res = await apiFetch('/api/diagnose', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.detail || `Server returned ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await parseApiJson(res, 'Diagnosis API');
     return renderMarkdownBody(data.diagnosis || 'No response returned.');
   } catch (err) {
-    return `<span class="bad">AI diagnosis failed: ${esc(err.message)}</span><br><span class="dim">Try again or check server logs.</span>`;
+    const userMsg = err && err.userMessage ? err.userMessage : 'AI diagnosis failed.';
+    const tech = (err && err.technical) || (err && err.message) || '';
+    return (
+      `<span class="bad">${esc(userMsg)}</span><br>` +
+      `<span class="dim">Connect a backend or check server logs.</span>` +
+      (tech
+        ? `<details style="margin-top:8px"><summary class="dim" style="cursor:pointer">Technical Details</summary>` +
+          `<pre class="snip" style="margin-top:6px;white-space:pre-wrap">${esc(tech)}</pre></details>`
+        : '')
+    );
   }
 }
 
@@ -710,7 +1115,7 @@ async function ask(text) {
   l.remove();
   say('doc', responseHtml);
   busy = false;
-  loadHistory();
+  if (!isDemoMode()) loadHistory();
 }
 
 askBox.addEventListener('input', () => {
@@ -736,10 +1141,10 @@ function toggleMenu() {
 function closeMenu() { $('#modelList').hidden = true; $('#modelBtn').setAttribute('aria-expanded', false); }
 
 async function loadModels() {
+  if (isDemoMode()) return;
   try {
-    const res = await fetch('/api/models');
-    if (!res.ok) return;
-    const data = await res.json();
+    const res = await apiFetch('/api/models');
+    const data = await parseApiJson(res, 'Models API');
     if (data.models && data.models.length) {
       activeModel = data.default || data.models[0].id;
       $('#modelName').textContent = activeModel;
@@ -750,15 +1155,20 @@ async function loadModels() {
       `).join('');
     }
   } catch (e) {
-    console.warn('Could not load models list:', e);
+    console.warn('Could not load models list:', e && (e.userMessage || e.message) ? (e.userMessage || e.message) : e);
   }
 }
 
 async function loadHistory() {
+  if (isDemoMode()) {
+    historyCache = [];
+    histPane.innerHTML = '<p class="dim">Diagnosis history needs a connected backend. Demo mode keeps the editor offline.</p>';
+    return;
+  }
   try {
-    const res = await fetch('/api/history');
-    if (!res.ok) return;
-    historyCache = await res.json();
+    const res = await apiFetch('/api/history');
+    const data = await parseApiJson(res, 'History API');
+    historyCache = Array.isArray(data) ? data : [];
     if (!historyCache.length) {
       histPane.innerHTML = '<p class="dim">No diagnosis history stored yet.</p>';
       return;
@@ -773,7 +1183,7 @@ async function loadHistory() {
       </div>
     `).join('');
   } catch (e) {
-    histPane.innerHTML = '<p class="dim">History unavailable.</p>';
+    histPane.innerHTML = '<p class="dim">History unavailable — connect a backend to sync diagnosis sessions.</p>';
   }
 }
 
@@ -878,9 +1288,24 @@ $('#templateList').innerHTML = TEMPLATES.map((s, i) =>
   `<li><button class="list-item" data-template="${i}">${icon('layout')}${s.name}<span class="sub">${s.desc}</span></button></li>`).join('');
 
 ta.value = files[active]?.src || '';
-term('<span class="dim">Python 3.10 sandbox ready. Type</span> python solution.py <span class="dim">or click Run (Ctrl ↵)</span>');
+// Always start with a clean terminal — never restore failed exec logs / auto-run.
+termLog.innerHTML = '';
+const stEnv = $('#stEnv');
+const banner = $('#web-demo-banner');
+if (isDemoMode()) {
+  if (stEnv) stEnv.textContent = 'Demo · Simulated Python';
+  if (banner) banner.style.display = '';
+  term('<strong>CodeDoctor Demo Environment</strong>');
+  term('<span class="dim">Ready to explore.</span>');
+  term('<span class="dim">Click Run to try the sample code.</span>');
+} else {
+  if (stEnv) stEnv.textContent = 'Python 3.10 Sandbox';
+  if (banner) banner.style.display = 'none';
+  term('<span class="dim">Python 3.10 sandbox ready. Type</span> python solution.py <span class="dim">or click Run (Ctrl ↵)</span>');
+}
 renderCode(); renderAll(); setMode('complete');
-loadModels();
-loadHistory();
+// No auto-execution on open/reload. Fetch models only when a backend is expected.
+if (!isDemoMode()) loadModels();
+// History loads on demand when the History tab is opened — avoids API spam on boot.
 ta.focus({ preventScroll: true });
 })();

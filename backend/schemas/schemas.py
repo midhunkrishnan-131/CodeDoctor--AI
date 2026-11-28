@@ -6,6 +6,8 @@ class ExecuteRequest(BaseModel):
     programming_language: str = Field("python", description="Target language (default: python)")
     timeout: Optional[float] = Field(5.0, description="Execution timeout in seconds")
     stdin_input: Optional[str] = Field("", description="Standard input for execution")
+    filename: Optional[str] = Field("solution.py", description="Main file to execute")
+    files: Optional[Dict[str, str]] = Field(default_factory=dict, description="All workspace files")
 
 class SyntaxErrorDetail(BaseModel):
     type: str

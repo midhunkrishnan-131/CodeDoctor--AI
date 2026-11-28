@@ -65,19 +65,9 @@ export function apiPlugin(): Plugin {
             const sourceCode = body.source_code || '';
             const timeout = Number(body.timeout) || 5.0;
             const stdinInput = body.stdin_input || '';
-            const filename = body.filename || 'solution.py';
-            const files = body.files && typeof body.files === 'object' ? body.files : {};
 
-            const execResult = await runPythonCode(
-              sourceCode,
-              timeout,
-              stdinInput,
-              filename,
-              files
-            );
-            // Sandbox always returns structured JSON; 500 only for runner infra failure
-            const status = execResult.error_type === 'RunnerError' ? 500 : 200;
-            return sendJson(status, execResult);
+            const execResult = await runPythonCode(sourceCode, timeout, stdinInput);
+            return sendJson(200, execResult);
           }
 
           if (req.method === 'POST' && url === '/api/diagnose') {

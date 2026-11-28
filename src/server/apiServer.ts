@@ -2,7 +2,7 @@
  * CodeDoctor AI - Server-side API Handler
  * Connects frontend requests directly to Python execution sandbox, SQLite, and Groq/Gemini AI.
  */
-import { spawn, execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -13,31 +13,6 @@ import { parseAiDiagnosis } from '../utils/markdownParser';
 const getProjectRoot = () => {
   return process.cwd();
 };
-
-/** Prefer python3, fall back to python / py (Windows). */
-let cachedPythonBin: string | null = null;
-function resolvePythonBin(): string {
-  if (cachedPythonBin) return cachedPythonBin;
-  const candidates =
-    process.platform === 'win32'
-      ? ['python', 'py', 'python3']
-      : ['python3', 'python'];
-  for (const cmd of candidates) {
-    try {
-      execSync(process.platform === 'win32' ? `${cmd} --version` : `${cmd} --version`, {
-        stdio: 'ignore',
-        timeout: 5000,
-        windowsHide: true,
-      });
-      cachedPythonBin = cmd;
-      return cmd;
-    } catch {
-      // try next
-    }
-  }
-  cachedPythonBin = process.platform === 'win32' ? 'python' : 'python3';
-  return cachedPythonBin;
-}
 
 export interface ExecuteResult {
   stdout: string;
@@ -54,45 +29,19 @@ export interface ExecuteResult {
 export async function runPythonCode(
   sourceCode: string,
   timeoutSec: number = 5.0,
-  stdinInput: string = '',
-  filename: string = 'solution.py',
-  files: Record<string, string> = {}
+  stdinInput: string = ''
 ): Promise<ExecuteResult> {
   const runnerPath = path.join(getProjectRoot(), 'backend', 'execution', 'runner.py');
-  const pythonBin = resolvePythonBin();
 
   return new Promise((resolve) => {
     const startTime = Date.now();
     let stdoutBuffer = '';
     let stderrBuffer = '';
-    let settled = false;
 
-    const finish = (result: ExecuteResult) => {
-      if (settled) return;
-      settled = true;
-      resolve(result);
-    };
-
-    const pyProc = spawn(pythonBin, [runnerPath], {
+    const pyProc = spawn('python3', [runnerPath], {
       cwd: getProjectRoot(),
-      env: { ...process.env, PYTHONUNBUFFERED: '1' },
-      windowsHide: true,
+      env: { ...process.env, PYTHONUNBUFFERED: '1' }
     });
-
-    const killTimer = setTimeout(() => {
-      try { pyProc.kill(); } catch { /* ignore */ }
-      finish({
-        stdout: stdoutBuffer,
-        stderr: stderrBuffer || `Sandbox timeout: runner did not finish within ${timeoutSec + 2}s`,
-        execution_status: 'timeout',
-        exit_code: -1,
-        execution_time_ms: Date.now() - startTime,
-        timed_out: true,
-        error_type: 'TimeoutError',
-        syntax_valid: false,
-        syntax_error: null
-      });
-    }, (timeoutSec + 2) * 1000);
 
     pyProc.stdout.on('data', (data) => {
       stdoutBuffer += data.toString();
@@ -103,10 +52,9 @@ export async function runPythonCode(
     });
 
     pyProc.on('error', (err) => {
-      clearTimeout(killTimer);
-      finish({
+      resolve({
         stdout: '',
-        stderr: `Failed to spawn Python runner (${pythonBin}): ${err.message}`,
+        stderr: `Failed to spawn Python runner: ${err.message}`,
         execution_status: 'error',
         exit_code: -1,
         execution_time_ms: Date.now() - startTime,
@@ -118,17 +66,9 @@ export async function runPythonCode(
     });
 
     pyProc.on('close', (code) => {
-      clearTimeout(killTimer);
-      const trimmed = stdoutBuffer.trim();
       try {
-        if (!trimmed || trimmed.startsWith('<')) {
-          throw new Error(
-            stderrBuffer.trim() ||
-              'Python runner returned an empty or non-JSON response'
-          );
-        }
-        const parsed = JSON.parse(trimmed);
-        finish({
+        const parsed = JSON.parse(stdoutBuffer.trim());
+        resolve({
           stdout: parsed.stdout || '',
           stderr: parsed.stderr || '',
           execution_status: parsed.success ? 'success' : (parsed.timed_out ? 'timeout' : 'error'),
@@ -140,14 +80,13 @@ export async function runPythonCode(
           syntax_error: parsed.syntax_error || null
         });
       } catch (e) {
-        finish({
+        resolve({
           stdout: stdoutBuffer,
           stderr: stderrBuffer || (e instanceof Error ? e.message : 'Unknown error'),
           execution_status: code === 0 ? 'success' : 'error',
           exit_code: code ?? -1,
           execution_time_ms: Date.now() - startTime,
           timed_out: false,
-          error_type: 'RunnerError',
           syntax_valid: false,
           syntax_error: null
         });
@@ -158,9 +97,7 @@ export async function runPythonCode(
     const payload = JSON.stringify({
       code: sourceCode,
       timeout: timeoutSec,
-      stdin: stdinInput,
-      filename,
-      files
+      stdin: stdinInput
     });
     pyProc.stdin.write(payload);
     pyProc.stdin.end();
@@ -171,7 +108,7 @@ export async function runPythonCode(
 export async function getDbHistory(): Promise<any[]> {
   const dbScript = path.join(getProjectRoot(), 'backend', 'database', 'db.py');
   return new Promise((resolve) => {
-    const py = spawn(resolvePythonBin(), [dbScript, 'list'], { cwd: getProjectRoot(), windowsHide: true });
+    const py = spawn('python3', [dbScript, 'list'], { cwd: getProjectRoot() });
     let out = '';
     py.stdout.on('data', (d) => { out += d.toString(); });
     py.on('close', () => {
@@ -187,7 +124,7 @@ export async function getDbHistory(): Promise<any[]> {
 export async function deleteDbRecord(id: string): Promise<boolean> {
   const dbScript = path.join(getProjectRoot(), 'backend', 'database', 'db.py');
   return new Promise((resolve) => {
-    const py = spawn(resolvePythonBin(), [dbScript, 'delete', id], { cwd: getProjectRoot(), windowsHide: true });
+    const py = spawn('python3', [dbScript, 'delete', id], { cwd: getProjectRoot() });
     let out = '';
     py.stdout.on('data', (d) => { out += d.toString(); });
     py.on('close', () => {
@@ -234,7 +171,7 @@ print(json.dumps(rec))
 `;
 
   return new Promise((resolve) => {
-    const py = spawn(resolvePythonBin(), ['-c', pyCode], { cwd: getProjectRoot(), windowsHide: true });
+    const py = spawn('python3', ['-c', pyCode], { cwd: getProjectRoot() });
     let out = '';
     py.stdout.on('data', (d) => { out += d.toString(); });
     py.on('close', () => {

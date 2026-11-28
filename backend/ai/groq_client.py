@@ -9,15 +9,13 @@ import urllib.error
 from typing import Dict, Any, Optional
 from backend.config import settings
 
-DEFAULT_GROQ_MODEL = settings.GROQ_MODEL or os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
+DEFAULT_GROQ_MODEL = settings.GROQ_MODEL or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 AVAILABLE_MODELS = [
-    {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "provider": "Groq", "description": "Recommended: High performance code analysis & fixes"},
-    {"id": "openai/gpt-oss-120b", "name": "GPT OSS 120B", "provider": "Groq", "description": "Large reasoning model for complex debugging"},
+    {"id": "openai/gpt-oss-120b", "name": "GPT OSS 120B", "provider": "Groq", "description": "Recommended: High capability reasoning & debugging"},
     {"id": "openai/gpt-oss-20b", "name": "GPT OSS 20B", "provider": "Groq", "description": "Fast response for instant logic hints"},
-    {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile", "provider": "Groq", "description": "Meta Llama 3.3 (if supported)"},
-    {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant", "provider": "Groq", "description": "Meta Llama 3.1 (if supported)"},
+    {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "provider": "Groq", "description": "Compact code analysis model"},
     {"id": "gemini-3.8-flash", "name": "Gemini 3.8 Flash", "provider": "Gemini", "description": "Built-in AI Studio fallback"}
 ]
 
@@ -100,13 +98,13 @@ def call_groq_api(
         except Exception:
             err_msg = str(e)
             
-        # Automatic fallback to qwen/qwen3.8-27b if requested model is unavailable
-        if status == 404 and chosen_model != "qwen/qwen3.8-27b":
+        # Automatic fallback to openai/gpt-oss-20b if requested model is unavailable or hit OTPM rate limit
+        if (status == 404 or (status == 429 and "OTPM" in err_msg)) and chosen_model != "openai/gpt-oss-20b":
             return call_groq_api(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 api_key=key,
-                model="qwen/qwen3.8-27b",
+                model="openai/gpt-oss-20b",
                 temperature=temperature,
                 max_tokens=max_tokens
             )

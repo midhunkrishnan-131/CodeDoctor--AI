@@ -41,28 +41,14 @@ def get_models():
 
 @router.post("/execute", response_model=ExecuteResponse)
 def execute_code_endpoint(req: ExecuteRequest):
-    try:
-        return run_code(
-            source_code=req.source_code,
-            timeout=req.timeout or 5.0,
-            stdin_input=req.stdin_input or "",
-            filename=req.filename or "solution.py",
-            files=req.files or {}
-        )
-    except Exception as e:
-        # Always return structured JSON for sandbox failures (never HTML)
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Sandbox execution failed",
-                "message": str(e),
-                "stdout": "",
-                "stderr": f"Sandbox failure: {e}",
-                "execution_status": "error",
-                "exit_code": -1,
-                "timed_out": False,
-            },
-        )
+    result = run_code(
+        source_code=req.source_code,
+        timeout=req.timeout or 5.0,
+        stdin_input=req.stdin_input or "",
+        filename=req.filename or "solution.py",
+        files=req.files or {}
+    )
+    return result
 
 @router.post("/diagnose", response_model=DiagnoseResponse)
 def diagnose_endpoint(req: DiagnoseRequest):

@@ -10,7 +10,7 @@ else:
 
 class Settings:
     GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY", "")
-    GROQ_MODEL: str = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+    GROQ_MODEL: str = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
     GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
     EXECUTION_TIMEOUT: float = float(os.environ.get("EXECUTION_TIMEOUT", "5.0"))
     MAX_OUTPUT_CHARS: int = int(os.environ.get("MAX_OUTPUT_CHARS", "50000"))
