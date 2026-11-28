@@ -2,6 +2,9 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Live demo](https://img.shields.io/badge/Live-GitHub%20Pages-d6f25a?labelColor=151413)](https://midhunkrishnan-131.github.io/CodeDoctor--AI/)
+
+**Live:** [https://midhunkrishnan-131.github.io/CodeDoctor--AI/](https://midhunkrishnan-131.github.io/CodeDoctor--AI/) · **Demo workspace:** [https://midhunkrishnan-131.github.io/CodeDoctor--AI/app/](https://midhunkrishnan-131.github.io/CodeDoctor--AI/app/)
 
 CodeDoctor AI is an in-browser Python workspace for running a snippet and reading a diagnosis of what went wrong. It is for students and developers who want the editor, the traceback, and an explanation in one page.
 

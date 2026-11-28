@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeDoctor AI — Intelligent Code Debugging & Logic Diagnosis</title>
+  <meta name="description" content="CodeDoctor AI is an in-browser Python workspace with dual AI diagnosis modes, a sandboxed runner, and Monaco editing. Try the live demo or run it locally.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0e0d;
+      --surface: #151413;
+      --elevated: #1c1a18;
+      --line: #2a2724;
+      --text: #ece6da;
+      --muted: #b3ab9d;
+      --faint: #8a8375;
+      --accent: #d6f25a;
+      --accent-ink: #161a06;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: "Instrument Sans", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1100px 560px at 8% -12%, rgba(214, 242, 90, 0.12), transparent 55%),
+        radial-gradient(900px 480px at 100% 0%, rgba(126, 211, 168, 0.07), transparent 50%),
+        linear-gradient(180deg, #161412 0%, var(--bg) 48%, #0a0908 100%);
+      line-height: 1.5;
+    }
+    .wrap {
+      width: min(980px, calc(100% - 2.5rem));
+      margin: 0 auto;
+      padding: 3.5rem 0 4rem;
+    }
+    .brand {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: clamp(2.75rem, 7vw, 4.5rem);
+      letter-spacing: -0.02em;
+      line-height: 0.95;
+      margin-bottom: 1rem;
+    }
+    .brand span { color: var(--accent); font-style: italic; }
+    .lead {
+      max-width: 36rem;
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 1.75rem;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 3rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.7rem 1.15rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--accent-ink);
+    }
+    .btn-primary:hover { background: #e3fa7a; }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--line);
+    }
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      background: rgba(214, 242, 90, 0.08);
+    }
+    .panel {
+      background: var(--elevated);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.35rem 1.4rem;
+      margin-bottom: 1rem;
+    }
+    .panel h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.55rem;
+    }
+    .panel p, .panel li {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .panel ul {
+      margin-left: 1.1rem;
+      display: grid;
+      gap: 0.35rem;
+    }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      margin-top: 1.5rem;
+    }
+    footer {
+      margin-top: 2.5rem;
+      color: var(--faint);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1 class="brand">Code<span>Doctor</span> AI</h1>
+    <p class="lead">
+      An in-browser Python workspace for running a snippet and reading a diagnosis of what went wrong —
+      with dual AI modes, a code health bar, and challenge presets.
+    </p>
+    <div class="actions">
+      <a class="btn btn-primary" href="./app/">Open live demo</a>
+      <a class="btn btn-secondary" href="https://github.com/midhunkrishnan-131/CodeDoctor--AI">View on GitHub</a>
+      <a class="btn btn-secondary" href="https://github.com/midhunkrishnan-131/CodeDoctor--AI#installation">Run locally</a>
+    </div>
+
+    <section class="panel">
+      <h2>What you get in the browser demo</h2>
+      <ul>
+        <li>Full workspace UI (editor, terminal, diagnosis panels, challenges)</li>
+        <li>Offline simulation so you can explore the product without a server</li>
+        <li>Optional local backend for real Python execution and Groq/Gemini diagnosis</li>
+      </ul>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Dual AI modes</h2>
+        <p>Complete Answer for a full fix, or Logic Suggestion for Socratic hints that withhold the solution.</p>
+      </section>
+      <section class="panel">
+        <h2>Local Python sandbox</h2>
+        <p>Run snippets with timeout, stdin, and health checks — then diagnose from the same page.</p>
+      </section>
+      <section class="panel">
+        <h2>Open source</h2>
+        <p>React/Vite frontend, Express or FastAPI API, and a standalone HTML/CSS/JS demo in the repo.</p>
+      </section>
+    </div>
+
+    <footer>
+      Live site for
+      <a href="https://github.com/midhunkrishnan-131/CodeDoctor--AI">midhunkrishnan-131/CodeDoctor--AI</a>.
+    </footer>
+  </main>
+</body>
+</html>

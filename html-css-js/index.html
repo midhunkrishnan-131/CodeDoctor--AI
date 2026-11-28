@@ -1,677 +1,1462 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CodeDoctor AI - Intelligent Code Debugging & Logic Diagnosis</title>
-  <meta name="description" content="AI-powered online coding, debugging, and logic diagnosis platform featuring dual AI modes, Python execution, and deep error analysis." />
-
-  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeDoctor AI · Workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+/* ===========================================================
+   CodeDoctor AI · warm graphite + citrine theme
+   =========================================================== */
+:root {
+  --bg-0: #0f0e0d;
+  --bg-1: #151413;
+  --bg-2: #1c1a18;
+  --bg-3: #262320;
+  --line: #2a2724;
+  --line-2: #37332e;
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  --tx: #ece6da;
+  --tx-2: #b3ab9d;
+  --tx-3: #8a8375;
 
-  <!-- Monaco Editor CDN loader -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+  --accent: #d6f25a;
+  --accent-hi: #e3fa7a;
+  --accent-ink: #161a06;
+  --accent-soft: rgba(214,242,90,.10);
+  --accent-line: rgba(214,242,90,.38);
 
-  <!-- Separate CSS Stylesheet -->
-  <link rel="stylesheet" href="style.css" />
+  --ok: #7ed3a8;
+  --warn: #f2b65c;
+  --err: #ff7a6b;
+  --err-soft: rgba(255,122,107,.13);
+
+  --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Instrument Serif", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 8px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-1);
+  color: var(--tx);
+  font: 14px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+kbd {
+  font: 500 10.5px var(--mono);
+  color: var(--tx-3);
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* SVG icons must be explicitly sized */
+.i {
+  width: 16px;
+  height: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.i--solid {
+  fill: currentColor;
+  stroke-width: 1;
+}
+
+.dim { color: var(--tx-3); }
+.ok { color: var(--ok); }
+.bad { color: var(--err); }
+
+/* ---------- layout ---------- */
+.app {
+  display: grid;
+  height: 100vh;
+  width: 100vw;
+  grid-template-columns: 240px minmax(0, 1fr) 380px;
+  grid-template-rows: 52px minmax(0, 1fr) 28px;
+  grid-template-areas: "top top top" "side work doc" "stat stat stat";
+  background: var(--bg-1);
+  overflow: hidden;
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 0 16px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--tx);
+  text-decoration: none;
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+}
+
+.brand-mark .i {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.2;
+}
+
+.brand-name {
+  font: 600 15px var(--sans);
+  letter-spacing: -.01em;
+}
+
+.brand-name sup {
+  font: 500 9.5px var(--mono);
+  color: var(--tx-3);
+  margin-left: 4px;
+  letter-spacing: .06em;
+}
+
+.nav {
+  display: flex;
+  height: 100%;
+  gap: 2px;
+}
+
+.nav-item {
+  position: relative;
+  padding: 0 14px;
+  color: var(--tx-2);
+  font-weight: 500;
+  transition: color .12s;
+}
+
+.nav-item:hover, .nav-item.is-active {
+  color: var(--tx);
+}
+
+.nav-item.is-active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--tx-2);
+  font-size: 12.5px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tx-3);
+  flex: none;
+}
+
+.dot--ok {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(126,211,168,.14);
+}
+
+.menu {
+  position: relative;
+}
+
+.model-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+  font-size: 12.5px;
+  transition: border-color .12s;
+}
+
+.model-btn:hover {
+  border-color: var(--tx-3);
+}
+
+.model-btn .src {
+  color: var(--tx-3);
+}
+
+.model-btn .name {
+  font: 500 12px var(--mono);
+}
+
+.model-btn .i {
+  width: 14px;
+  height: 14px;
+  color: var(--tx-3);
+}
+
+.menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 230px;
+  padding: 4px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0,0,0,.5);
+  z-index: 30;
+}
+
+.menu-list[hidden] {
+  display: none;
+}
+
+.menu-list button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font: 500 12.5px var(--mono);
+  color: var(--tx-2);
+}
+
+.menu-list button:hover {
+  background: var(--bg-3);
+  color: var(--tx);
+}
+
+.menu-list button[aria-selected="true"] {
+  color: var(--tx);
+}
+
+.menu-list button[aria-selected="true"] span:first-child::before {
+  content: "● ";
+  color: var(--accent);
+  font-size: 9px;
+  vertical-align: 1px;
+}
+
+.tag {
+  font: 400 10.5px var(--sans);
+  color: var(--tx-3);
+}
+
+.icon-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r);
+  color: var(--tx-2);
+  transition: background .12s, color .12s;
+}
+
+.icon-btn:hover {
+  background: var(--bg-3);
+  color: var(--tx);
+}
+
+.icon-btn--sm {
+  width: 26px;
+  height: 26px;
+}
+
+.ping {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-1);
+  box-sizing: content-box;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  font: 600 11.5px var(--sans);
+  letter-spacing: .02em;
+}
+
+/* ---------- sidebar ---------- */
+.sidebar {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-1);
+  border-right: 1px solid var(--line);
+}
+
+.seg-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 10px 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.seg-tabs button {
+  position: relative;
+  padding: 8px 10px 11px;
+  color: var(--tx-3);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.seg-tabs button:hover, .seg-tabs button.is-active {
+  color: var(--tx);
+}
+
+.seg-tabs button.is-active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--tx);
+}
+
+.side-panes {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 8px;
+}
+
+.pane { display: none; }
+.pane.is-active { display: block; }
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 26px;
+  padding: 0 6px 8px 10px;
+  color: var(--tx-3);
+  font: 500 11px var(--sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r);
+  color: var(--tx-2);
+  text-align: left;
+  font-size: 13.5px;
+  transition: background .12s, color .12s;
+}
+
+.list-item:hover {
+  background: var(--bg-2);
+  color: var(--tx);
+}
+
+.list-item.is-active {
+  background: var(--bg-3);
+  color: var(--tx);
+}
+
+.list-item .sub {
+  margin-left: auto;
+  font: 400 11px var(--mono);
+  color: var(--tx-3);
+}
+
+.badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  display: inline-grid;
+  place-items: center;
+  font: 600 10.5px var(--sans);
+  background: var(--err-soft);
+  color: var(--err);
+}
+
+.badge[hidden] { display: none; }
+
+.quick {
+  padding: 12px 10px;
+  border-top: 1px solid var(--line);
+}
+
+.quick h3 {
+  padding: 0 6px 8px;
+  font: 500 11px var(--sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+}
+
+.quick button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 6px;
+  color: var(--tx-2);
+  font-size: 13px;
+}
+
+.quick button:hover {
+  background: var(--bg-2);
+  color: var(--tx);
+}
+
+.quick kbd {
+  margin-left: auto;
+}
+
+.challenge {
+  margin: 0 10px 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+
+.challenge:hover {
+  border-color: var(--line-2);
+}
+
+.challenge-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--tx-3);
+}
+
+.challenge-title {
+  margin: 4px 0 12px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.segs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.segs span {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-3);
+  transition: background .2s;
+}
+
+.segs span.ok { background: var(--ok); }
+.segs span.bad { background: var(--err); }
+
+.challenge-foot {
+  margin-top: 10px;
+  font: 400 11.5px var(--mono);
+  color: var(--tx-2);
+}
+
+/* ---------- workbench ---------- */
+.workbench {
+  grid-area: work;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-0);
+}
+
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  max-width: 100%;
+  padding-right: 12px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.tabs {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 8px 0 14px;
+  color: var(--tx-3);
+  font-size: 13px;
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.tab:hover { color: var(--tx); }
+
+.tab.is-active {
+  color: var(--tx);
+  background: var(--bg-0);
+  box-shadow: 0 1px 0 var(--bg-0);
+}
+
+.tab.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.tab-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  color: inherit;
+}
+
+.tab .mark {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--err);
+}
+
+.tab .x {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  color: var(--tx-3);
+  opacity: 0;
+}
+
+.tab:hover .x, .tab.is-active .x { opacity: 1; }
+
+.tab .x:hover {
+  background: var(--bg-3);
+  color: var(--tx);
+}
+
+.tab .x .i { width: 12px; height: 12px; }
+
+.editor-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.run {
+  display: flex;
+  height: 30px;
+  margin-right: 6px;
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.run button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: inherit;
+}
+
+.run button:hover { background: var(--accent-hi); }
+.run .run-more { padding: 0 8px; border-left: 1px solid rgba(22,26,6,.2); }
+.run kbd { color: rgba(22,26,6,.65); border-color: rgba(22,26,6,.25); font-size: 10px; }
+.run .i { width: 14px; height: 14px; }
+
+.spin {
+  display: none;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(22,26,6,.25);
+  border-top-color: var(--accent-ink);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+.run.is-running .spin { display: block; }
+.run.is-running .run-ico { display: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- editor canvas ---------- */
+.editor-scroll {
+  overflow: auto;
+  min-height: 0;
+  cursor: text;
+  background: var(--bg-0);
+}
+
+.editor {
+  display: grid;
+  grid-template-columns: 56px auto;
+  min-width: 100%;
+  width: max-content;
+  min-height: 100%;
+}
+
+.gutter {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  padding: 16px 0;
+  background: var(--bg-0);
+  text-align: right;
+  font: 400 12.5px/22px var(--mono);
+  color: var(--tx-3);
+  user-select: none;
+}
+
+.gutter div {
+  position: relative;
+  height: 22px;
+  padding-right: 14px;
+}
+
+.gutter div.is-cur { color: var(--tx); }
+
+.gutter div.has-err::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--err);
+}
+
+.code-wrap {
+  position: relative;
+}
+
+.curline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 16px;
+  height: 22px;
+  background: rgba(236,230,218,.04);
+  pointer-events: none;
+}
+
+.code-layer, .code-input {
+  font: 400 13.5px/22px var(--mono);
+  tab-size: 4;
+  white-space: pre;
+  padding: 16px 48px 16px 8px;
+  letter-spacing: 0;
+}
+
+.code-layer {
+  margin: 0;
+  min-height: 100%;
+  color: #d9d2c5;
+  pointer-events: none;
+}
+
+.code-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--accent);
+}
+
+.code-input::selection {
+  background: rgba(214,242,90,.22);
+  color: transparent;
+}
+
+.t-kw { color: #f29b6e; }
+.t-str { color: #a7d08e; }
+.t-num { color: #e9c66f; }
+.t-fn { color: #8cc7d9; }
+.t-bi { color: #d8a8c6; }
+.t-com { color: #7c7567; font-style: italic; }
+.sq { text-decoration: underline wavy var(--err); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.ghost { margin-left: 24px; padding: 1px 8px; border-radius: 4px; background: var(--err-soft); color: var(--err); font: 500 11.5px var(--mono); user-select: none; }
+
+/* ---------- console drawer ---------- */
+.console {
+  display: flex;
+  flex-direction: column;
+  height: 236px;
+  min-height: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+  background: var(--bg-0);
+  transition: height .2s ease;
+}
+
+.console.is-max { height: min(62vh, 520px); }
+
+.console-bar {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 8px 0 4px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.console-tabs {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.console-tabs::-webkit-scrollbar { display: none; }
+
+.ctab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  padding: 0 12px;
+  color: var(--tx-3);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ctab:hover, .ctab.is-active { color: var(--tx); }
+
+.ctab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--tx);
+}
+
+.ctab .i { width: 14px; height: 14px; }
+.console-tools {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.console-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px;
+  font: 400 12.5px/20px var(--mono);
+  color: var(--tx-2);
+}
+
+.cpane { display: none; }
+.cpane.is-active { display: block; }
+
+.prompt { color: var(--accent); }
+
+.term-in {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.term-in input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: 0;
+  color: var(--tx);
+  font: inherit;
+  caret-color: var(--accent);
+}
+
+.out-sum { margin-bottom: 8px; font-weight: 600; }
+
+.tests {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tests td, .tests th {
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.tests .st { width: 52px; font-weight: 600; }
+
+.prob {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.prob .i { width: 14px; height: 14px; }
+.prob-t { flex: 1; }
+
+.hist-item {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+
+.hist-item:hover { border-color: var(--line-2); }
+.hist-title { font-weight: 600; color: var(--tx); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.hist-meta { font-size: 11px; color: var(--tx-3); }
+
+/* ---------- doctor AI panel ---------- */
+.doctor {
+  grid-area: doc;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-width: 100%;
+  overflow: hidden;
+  background: var(--bg-1);
+  border-left: 1px solid var(--line);
+  position: relative;
+  z-index: 10;
+}
+
+.doctor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.doctor-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.doctor-title .i { color: var(--accent); }
+.reading { display: flex; align-items: center; gap: 7px; font: 400 11px var(--mono); color: var(--tx-3); }
+
+.mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 14px 16px 0;
+  padding: 3px;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.mode button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 32px;
+  border-radius: 7px;
+  color: var(--tx-3);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background .12s, color .12s;
+}
+
+.mode button:hover { color: var(--tx); }
+.mode button.is-active { background: var(--bg-3); color: var(--tx); box-shadow: inset 0 0 0 1px var(--line-2); }
+.mode button.is-active .i { color: var(--accent); }
+.mode button .i { width: 14px; height: 14px; }
+.mode-desc { margin: 8px 18px 0; font-size: 12px; color: var(--tx-3); }
+
+.chat {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 22px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.verdict { font: 400 36px/1.02 var(--serif); letter-spacing: -.01em; }
+.verdict em { font-style: italic; color: var(--accent); }
+.verdict-sub { margin-top: 10px; font: 400 12px var(--mono); color: var(--tx-3); }
+
+.card {
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-2);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 14px 0;
+}
+
+.sev {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 10.5px var(--sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--err);
+}
+
+.sev::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.sev--ok { color: var(--ok); }
+.sev--hint { color: var(--warn); }
+.loc { margin-left: auto; font: 400 11px var(--mono); color: var(--tx-3); }
+.card-title { padding: 8px 14px 0; font-weight: 600; font-size: 15px; }
+.card-body { padding: 6px 14px 12px; color: var(--tx-2); font-size: 13px; line-height: 1.55; }
+.card-body p { margin-bottom: 8px; }
+.card-body ul { list-style: disc; padding-left: 18px; margin-bottom: 8px; }
+.card-body li { margin-bottom: 4px; }
+.card-body table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+.card-body th, .card-body td { padding: 6px 8px; border: 1px solid var(--line); text-align: left; }
+.card-body th { background: var(--bg-3); color: var(--tx); }
+
+.hints { padding: 10px 14px 4px 34px; color: var(--tx-2); font-size: 13px; }
+.hints li { margin-bottom: 8px; padding-left: 2px; }
+.hints li::marker { color: var(--accent); font-weight: 600; }
+
+.diff {
+  margin: 0 14px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-0);
+  font: 400 12px/20px var(--mono);
+  overflow: auto;
+}
+
+.diff div { padding: 0 10px; white-space: pre; }
+.diff .del { background: rgba(255,122,107,.10); color: #ffb3a9; }
+.diff .add { background: rgba(126,211,168,.10); color: #a8e6c6; }
+.card-actions { display: flex; gap: 8px; padding: 0 14px 14px; }
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r);
+  border: 1px solid var(--line-2);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--tx);
+  transition: background .12s;
+}
+
+.btn:hover { background: var(--bg-3); }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn--primary:hover { background: var(--accent-hi); }
+.btn--sm { height: 28px; padding: 0 12px; font-size: 12.5px; }
+
+.thread { display: flex; flex-direction: column; gap: 16px; }
+.msg { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.55; color: var(--tx-2); }
+.msg-who { font: 600 10.5px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--tx-3); }
+.msg--me { align-self: flex-end; max-width: 88%; padding: 8px 12px; border-radius: 12px 12px 4px 12px; background: var(--bg-3); color: var(--tx); }
+.msg code { padding: 1px 5px; border-radius: 4px; background: var(--bg-3); color: var(--tx); font: 500 12px var(--mono); }
+.snip { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-0); font: 400 12px/20px var(--mono); color: #d9d2c5; overflow: auto; white-space: pre; }
+.pulse { width: 56px; height: 20px; color: var(--accent); }
+.pulse path { stroke-dasharray: 28 70; animation: beat 1.2s linear infinite; }
+@keyframes beat { from { stroke-dashoffset: 98; } to { stroke-dashoffset: 0; } }
+
+.composer {
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--tx-2);
+  transition: all .12s;
+}
+
+.chip:hover {
+  border-color: var(--tx-3);
+  color: var(--tx);
+  background: var(--bg-2);
+}
+
+.chip .i { width: 13px; height: 13px; }
+
+.composer-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-0);
+  transition: border-color .12s, box-shadow .12s;
+}
+
+.composer-box:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.composer-box textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 120px;
+  padding: 6px 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+}
+
+.composer-box textarea::placeholder { color: var(--tx-3); }
+
+.send {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  transition: background .12s;
+}
+
+.send:hover:not(:disabled) { background: var(--accent-hi); }
+.send:disabled { background: var(--bg-3); color: var(--tx-3); cursor: default; }
+
+.composer-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--tx-3);
+}
+
+.ctx {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+}
+
+.ctx .i { width: 12px; height: 12px; }
+
+/* ---------- status bar ---------- */
+.statusbar {
+  grid-area: stat;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 14px;
+  background: var(--bg-1);
+  border-top: 1px solid var(--line);
+  font: 400 11.5px var(--mono);
+  color: var(--tx-3);
+}
+
+.statusbar .spacer { flex: 1; }
+.statusbar b { font-weight: 500; color: var(--tx-2); }
+.st-item { display: flex; align-items: center; gap: 7px; }
+.st-item span { display: flex; align-items: center; gap: 6px; }
+.statusbar .i { width: 12px; height: 12px; }
+.st-err { color: var(--err); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1280px) {
+  .app {
+    grid-template-columns: 220px minmax(0, 1fr) 350px;
+  }
+  .pill { display: none; }
+}
+
+@media (max-width: 980px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: "top top" "work doc" "stat stat";
+  }
+  .sidebar { display: none; }
+}
+
+@media (max-width: 720px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top" "work" "stat";
+  }
+  .sidebar, .doctor, .nav { display: none; }
+}
+  </style>
 </head>
 <body>
-  <div id="app" class="app-container">
 
-    <!-- Top Navigation Bar -->
-    <header class="navbar">
-      <div class="nav-left">
-        <div class="brand-group" id="btn-brand">
-          <div class="brand-logo">
-            <i data-lucide="stethoscope" class="brand-icon"></i>
-          </div>
-          <div class="brand-text">
-            <span class="brand-title">CodeDoctor <span class="accent-cyan">AI</span></span>
-            <span class="brand-badge">IDE</span>
-          </div>
-        </div>
+<!-- Hidden SVG sprite: display:none prevents any sprite rendering leak! -->
+<svg style="display:none;" aria-hidden="true">
+  <defs>
+    <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M22 12h-4l-3 8-6-16-3 8H2"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+    <symbol id="i-bug" viewBox="0 0 24 24"><path d="m8 2 1.88 1.88M14.12 3.88 16 2M9 7.13v-1a3 3 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6zM12 20v-9M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4"/></symbol>
+    <symbol id="i-split" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+    <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></symbol>
+    <symbol id="i-format" viewBox="0 0 24 24"><path d="M17 6H3M21 12H3M15 18H3"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6M12 19h8"/></symbol>
+    <symbol id="i-output" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5M9 18h6M10 22h4"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  </defs>
+</svg>
 
-        <div class="nav-divider"></div>
+<div class="app">
 
-        <div class="badge-pill sandbox-pill" title="Python isolated subprocess execution sandbox">
-          <i data-lucide="shield-check" class="text-emerald"></i>
-          <span>Python 3.10 Sandbox</span>
-        </div>
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="CodeDoctor AI">
+      <span class="brand-mark"><svg class="i"><use href="#i-pulse"/></svg></span>
+      <span class="brand-name">CodeDoctor<sup>AI</sup></span>
+    </a>
 
-        <div class="badge-pill model-pill" id="nav-model-pill" title="Click to configure AI Engine or switch models">
-          <i data-lucide="sparkles" class="text-purple"></i>
-          <span id="nav-active-model-name">Qwen 3.8 27B</span>
-          <span class="status-dot dot-emerald" id="nav-api-indicator" title="Groq API Active"></span>
-        </div>
-      </div>
+    <nav class="nav" aria-label="Primary">
+      <button class="nav-item is-active" data-nav="workspace">Workspace</button>
+      <button class="nav-item" data-nav="challenges">Challenges</button>
+      <button class="nav-item" data-nav="history">History</button>
+      <button class="nav-item" data-nav="settings">Settings</button>
+    </nav>
 
-      <div class="nav-right">
-        <button type="button" class="btn btn-nav" id="btn-open-challenges" title="Load pre-built buggy code challenges">
-          <i data-lucide="book-open" class="text-cyan"></i>
-          <span class="btn-text">Challenges</span>
+    <div class="topbar-right">
+      <div class="pill"><span class="dot dot--ok" id="sandboxDot"></span><span id="sandboxText">Python 3.10 sandbox</span></div>
+
+      <div class="menu">
+        <button class="model-btn" id="modelBtn" data-action="toggle-model" aria-haspopup="listbox" aria-expanded="false">
+          <span class="src">Groq</span>
+          <span class="name" id="modelName">openai/gpt-oss-120b</span>
+          <svg class="i"><use href="#i-chev"/></svg>
         </button>
-
-        <button type="button" class="btn btn-nav" id="btn-open-history" title="View diagnosis session history">
-          <i data-lucide="history" class="text-purple"></i>
-          <span class="btn-text">History</span>
-          <span class="counter-badge" id="history-counter">0</span>
-        </button>
-
-        <button type="button" class="btn btn-nav" id="btn-open-settings" title="Configure API keys and execution settings">
-          <i data-lucide="settings" class="text-slate"></i>
-          <span class="btn-text">Settings</span>
-        </button>
-
-        <button type="button" class="btn btn-nav btn-icon-only" id="btn-open-help" title="CodeDoctor AI Guide & Architecture">
-          <i data-lucide="help-circle" class="text-slate"></i>
-        </button>
-      </div>
-    </header>
-
-    <!-- Main Workspace Layout -->
-    <main class="main-workspace">
-
-      <!-- Problem Description Panel -->
-      <section class="panel problem-panel">
-        <div class="panel-header problem-header">
-          <div class="header-left">
-            <div class="icon-box icon-indigo">
-              <i data-lucide="file-text"></i>
-            </div>
-            <label for="problem-description-input" class="panel-title">Programming Problem / Task</label>
-          </div>
-          <div class="header-right">
-            <button type="button" class="btn-link text-cyan" id="btn-load-example-problem">
-              <i data-lucide="sparkles"></i>
-              <span>Example</span>
-            </button>
-            <button type="button" class="btn-link text-slate" id="btn-clear-problem">
-              <span>Clear</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="problem-input-container">
-          <textarea
-            id="problem-description-input"
-            rows="3"
-            placeholder="Enter your programming question or assignment prompt here..."
-          ></textarea>
-          <div class="char-count" id="problem-char-count">0 chars</div>
-        </div>
-      </section>
-
-      <!-- 2-Column Responsive Workspace -->
-      <div class="workspace-grid">
-
-        <!-- Left Column: Code Editor & Execution Panel -->
-        <div class="workspace-left-column">
-
-          <!-- Monaco Python Code Editor Panel -->
-          <section class="panel editor-panel">
-            <div class="panel-header editor-header">
-              <div class="header-left">
-                <i data-lucide="file-code" class="text-indigo"></i>
-                <span class="filename">solution.py</span>
-                <span class="lang-tag">Python 3</span>
-              </div>
-
-              <div class="header-right editor-tools">
-                <div class="font-controls" title="Adjust font size">
-                  <button type="button" class="btn-tool" id="btn-font-dec" title="Decrease font size">-</button>
-                  <span id="font-size-label" class="font-label">14px</span>
-                  <button type="button" class="btn-tool" id="btn-font-inc" title="Increase font size">+</button>
-                </div>
-
-                <div class="tool-separator"></div>
-
-                <button type="button" class="btn-tool" id="btn-insert-debug" title="Inject debug print statement">
-                  <i data-lucide="terminal"></i>
-                  <span class="btn-tool-label">Debug Print</span>
-                </button>
-
-                <button type="button" class="btn-tool" id="btn-reset-code" title="Reset starter code">
-                  <i data-lucide="rotate-ccw"></i>
-                  <span class="btn-tool-label">Reset</span>
-                </button>
-
-                <button type="button" class="btn-tool" id="btn-clear-code" title="Clear editor">
-                  <i data-lucide="trash-2"></i>
-                </button>
-
-                <button type="button" class="btn-tool" id="btn-copy-code" title="Copy code">
-                  <i data-lucide="copy" id="icon-copy-code"></i>
-                </button>
-
-                <button type="button" class="btn-tool" id="btn-download-code" title="Download solution.py">
-                  <i data-lucide="download"></i>
-                </button>
-
-                <button type="button" class="btn-tool" id="btn-theme-toggle" title="Toggle Light / Dark theme">
-                  <i data-lucide="sun" id="icon-theme"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- Code Editor Container (Monaco Editor & Textarea Fallback) -->
-            <div class="editor-body">
-              <div id="monaco-editor" class="monaco-container"></div>
-              <textarea id="code-fallback-editor" class="code-textarea hidden" spellcheck="false"></textarea>
-            </div>
-
-            <!-- Editor Footer -->
-            <div class="editor-footer">
-              <div class="footer-left">
-                <span class="shortcut-tip"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to Run Code</span>
-              </div>
-              <div class="footer-right">
-                <button type="button" class="btn btn-primary btn-run" id="btn-run-code">
-                  <i data-lucide="play" class="btn-icon"></i>
-                  <span>Run Code</span>
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <!-- Execution Terminal Panel -->
-          <section class="panel terminal-panel">
-            <div class="panel-header terminal-header">
-              <div class="header-left">
-                <i data-lucide="terminal" class="text-cyan"></i>
-                <span class="panel-title">Execution Terminal</span>
-
-                <!-- Terminal Status Badge -->
-                <span class="terminal-status-badge status-idle" id="terminal-status-badge">
-                  <span>Idle</span>
-                </span>
-
-                <!-- Execution Time Indicator -->
-                <span class="exec-time hidden" id="exec-time-display">
-                  <i data-lucide="clock"></i>
-                  <span id="exec-time-val">0.0 ms</span>
-                </span>
-              </div>
-
-              <div class="header-right">
-                <!-- Terminal Tabs -->
-                <div class="tab-group">
-                  <button type="button" class="tab-btn active" id="tab-btn-output">Console Output</button>
-                  <button type="button" class="tab-btn" id="tab-btn-stdin">Standard Input (stdin)</button>
-                </div>
-
-                <div class="tool-separator"></div>
-
-                <button type="button" class="btn-tool" id="btn-copy-terminal" title="Copy output">
-                  <i data-lucide="copy" id="icon-copy-terminal"></i>
-                </button>
-
-                <button type="button" class="btn-tool" id="btn-clear-terminal" title="Clear terminal">
-                  <i data-lucide="trash-2"></i>
-                </button>
-
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-stop-code" disabled title="Stop execution">
-                  <i data-lucide="square" class="btn-icon"></i>
-                  <span>Stop</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Terminal Content Area -->
-            <div class="terminal-body">
-              <!-- Console Output Tab -->
-              <div class="terminal-tab-pane active" id="pane-output">
-                <div class="terminal-console" id="terminal-console-output">
-                  <div class="terminal-empty-prompt">
-                    <span class="terminal-prompt-prefix">$</span> python3 solution.py
-                    <div class="text-muted mt-1">Ready. Click "Run Code" or press Ctrl+Enter to execute.</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Standard Input (stdin) Tab -->
-              <div class="terminal-tab-pane" id="pane-stdin">
-                <textarea
-                  id="stdin-input"
-                  class="stdin-textarea"
-                  placeholder="Provide stdin inputs for input() or sys.stdin (one input per line)..."
-                ></textarea>
-                <div class="stdin-hint">Passed to Python's sys.stdin during execution.</div>
-              </div>
-            </div>
-          </section>
-
-        </div>
-
-        <!-- Right Column: AI Doctor Panel -->
-        <div class="workspace-right-column">
-          <section class="panel ai-doctor-panel">
-
-            <!-- AI Doctor Panel Header -->
-            <div class="panel-header ai-header">
-              <div class="ai-brand-group">
-                <div class="icon-box icon-purple">
-                  <i data-lucide="stethoscope"></i>
-                </div>
-                <div>
-                  <h2 class="panel-title">AI Doctor Diagnosis</h2>
-                  <div class="ai-meta">
-                    <span id="ai-provider-label">Groq AI</span>
-                    <span>•</span>
-                    <span id="ai-model-label">llama-3.3-70b-versatile</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="ai-header-actions">
-                <button type="button" class="btn-tool" id="btn-ai-settings-shortcut" title="Change AI Model or API Key">
-                  <i data-lucide="settings"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- Dual Mode Selector Tabs -->
-            <div class="ai-mode-container">
-              <div class="mode-selector">
-                <button type="button" class="mode-tab-btn active" id="mode-tab-complete" data-mode="complete_answer">
-                  <div class="mode-tab-header">
-                    <i data-lucide="code-2" class="text-purple"></i>
-                    <span class="mode-name">Mode A: Complete Answer</span>
-                  </div>
-                  <span class="mode-sub">Full corrected code & root cause</span>
-                </button>
-
-                <button type="button" class="mode-tab-btn" id="mode-tab-logic" data-mode="logic_suggestion">
-                  <div class="mode-tab-header">
-                    <i data-lucide="lightbulb" class="text-amber"></i>
-                    <span class="mode-name">Mode B: Logic Suggestion</span>
-                  </div>
-                  <span class="mode-sub">Socratic hints (no full code)</span>
-                </button>
-              </div>
-
-              <!-- Diagnose Action Button -->
-              <div class="diagnose-trigger-area">
-                <button type="button" class="btn btn-diagnose" id="btn-diagnose">
-                  <i data-lucide="sparkles" class="btn-icon"></i>
-                  <span id="diagnose-btn-text">Diagnose with CodeDoctor AI</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Diagnosis Results View Area -->
-            <div class="ai-results-body" id="ai-results-container">
-
-              <!-- Idle Prompt State -->
-              <div class="ai-idle-state" id="ai-idle-state">
-                <div class="idle-icon-ring">
-                  <i data-lucide="stethoscope" class="idle-icon"></i>
-                </div>
-                <h3>AI Diagnosis Ready</h3>
-                <p>Run your code or click <strong>Diagnose with CodeDoctor AI</strong> to receive an in-depth diagnosis of bugs, logic flaws, and optimizations.</p>
-
-                <div class="idle-feature-list">
-                  <div class="feature-item">
-                    <i data-lucide="check-circle-2" class="text-cyan"></i>
-                    <span>Deep bug category detection & root cause</span>
-                  </div>
-                  <div class="feature-item">
-                    <i data-lucide="check-circle-2" class="text-purple"></i>
-                    <span>Mode A: 1-Click "Apply to Editor" with verified code</span>
-                  </div>
-                  <div class="feature-item">
-                    <i data-lucide="check-circle-2" class="text-amber"></i>
-                    <span>Mode B: Socratic mentor hints for independent learning</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Loading State -->
-              <div class="ai-loading-state hidden" id="ai-loading-state">
-                <div class="spinner-pulse"></div>
-                <h4 id="loading-step-title">Consulting CodeDoctor AI...</h4>
-                <p id="loading-step-sub" class="text-muted">Analyzing source code, execution outputs, and syntax traces</p>
-                <div class="loading-progress-bar">
-                  <div class="loading-progress-fill"></div>
-                </div>
-              </div>
-
-              <!-- Error State -->
-              <div class="ai-error-state hidden" id="ai-error-state">
-                <i data-lucide="alert-triangle" class="text-rose error-large-icon"></i>
-                <h4 id="ai-error-title">Diagnosis Request Failed</h4>
-                <p id="ai-error-msg" class="text-muted">Error contacting diagnosis service.</p>
-                <div class="mt-3">
-                  <button type="button" class="btn btn-secondary btn-sm" id="btn-error-open-settings">
-                    <i data-lucide="key"></i>
-                    <span>Configure Groq API Key</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Active Diagnosis Output View -->
-              <div class="ai-content-view hidden" id="ai-content-view">
-                <!-- Diagnosis Quick Toolbar -->
-                <div class="diagnosis-toolbar">
-                  <div class="toolbar-left">
-                    <span class="badge-mode-tag" id="active-diagnosis-badge">Mode A: Complete Fix</span>
-                  </div>
-                  <div class="toolbar-right">
-                    <button type="button" class="btn-tool" id="btn-copy-diagnosis" title="Copy full diagnosis">
-                      <i data-lucide="copy" id="icon-copy-diag"></i>
-                      <span>Copy All</span>
-                    </button>
-                    <button type="button" class="btn-tool hidden" id="btn-copy-extracted-code" title="Copy corrected code">
-                      <i data-lucide="code-2"></i>
-                      <span>Copy Code</span>
-                    </button>
-                    <button type="button" class="btn btn-primary btn-sm hidden" id="btn-apply-code" title="Apply corrected code directly into the editor">
-                      <i data-lucide="check-circle-2"></i>
-                      <span>Apply to Editor</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Structured Rendered Sections -->
-                <div class="diagnosis-sections-container" id="diagnosis-sections-list"></div>
-              </div>
-
-            </div>
-
-          </section>
-        </div>
-
+        <ul class="menu-list" id="modelList" role="listbox" hidden>
+          <li><button role="option" data-model="openai/gpt-oss-120b" aria-selected="true"><span>openai/gpt-oss-120b</span><span class="tag">recommended</span></button></li>
+          <li><button role="option" data-model="openai/gpt-oss-20b" aria-selected="false"><span>openai/gpt-oss-20b</span><span class="tag">fast</span></button></li>
+          <li><button role="option" data-model="qwen/qwen3.8-27b" aria-selected="false"><span>qwen/qwen3.8-27b</span><span class="tag">code</span></button></li>
+        </ul>
       </div>
 
-    </main>
+      <button class="icon-btn" id="btnNotification" aria-label="Notifications"><svg class="i"><use href="#i-bell"/></svg><span class="ping"></span></button>
+      <button class="avatar" id="btnAvatar" aria-label="Account">MK</button>
+    </div>
+  </header>
 
-    <!-- Bottom Code Health Bar -->
-    <footer class="code-health-bar">
-      <div class="health-left">
-        <div class="health-title">
-          <i data-lucide="activity" class="text-cyan pulse-icon"></i>
-          <span>Code Health:</span>
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" aria-label="Project sidebar">
+    <div class="seg-tabs" role="tablist">
+      <button role="tab" class="is-active" data-pane="files" aria-selected="true">Files</button>
+      <button role="tab" data-pane="snippets" aria-selected="false">Snippets</button>
+      <button role="tab" data-pane="templates" aria-selected="false">Templates</button>
+    </div>
+
+    <div class="side-panes">
+      <div class="pane is-active" id="pane-files">
+        <div class="pane-head">
+          <span id="projectRootLabel">challenge-04</span>
+          <button class="icon-btn icon-btn--sm" data-action="new-file" aria-label="New file"><svg class="i"><use href="#i-plus"/></svg></button>
         </div>
-
-        <!-- Syntax Status Badge -->
-        <div class="health-chip" id="health-syntax-chip">
-          <span class="chip-label">Syntax:</span>
-          <span class="chip-val text-slate" id="health-syntax-val">
-            <i data-lucide="help-circle"></i> Unchecked
-          </span>
-        </div>
-
-        <!-- Execution Status Badge -->
-        <div class="health-chip" id="health-exec-chip">
-          <span class="chip-label">Execution:</span>
-          <span class="chip-val text-slate" id="health-exec-val">
-            <i data-lucide="help-circle"></i> Not Run Yet
-          </span>
-        </div>
-
-        <!-- Detected Errors Tags -->
-        <div class="detected-errors-group" id="health-errors-group"></div>
+        <ul id="fileList"></ul>
       </div>
-
-      <div class="health-right">
-        <!-- Quality Tips / Loop Warning -->
-        <div class="health-tips" id="health-tips-text">
-          <i data-lucide="info" class="text-indigo"></i>
-          <span id="health-tips-msg">Click "Run Code" to inspect outputs or test with dual AI diagnosis.</span>
-        </div>
-
-        <!-- Overall Score Badge -->
-        <div class="health-score-badge badge-slate" id="health-score-badge">
-          <i data-lucide="shield-check"></i>
-          <span id="health-score-val">Ready</span>
-        </div>
+      <div class="pane" id="pane-snippets">
+        <div class="pane-head"><span>Insert at cursor</span></div>
+        <ul id="snippetList"></ul>
       </div>
-    </footer>
+      <div class="pane" id="pane-templates">
+        <div class="pane-head"><span>Start from</span></div>
+        <ul id="templateList"></ul>
+      </div>
+    </div>
 
-    <!-- ==================== MODALS ==================== -->
+    <div class="quick">
+      <h3>Quick actions</h3>
+      <button data-action="new-file"><svg class="i"><use href="#i-file"/></svg>New file<kbd>Alt N</kbd></button>
+      <button data-action="run"><svg class="i"><use href="#i-play"/></svg>Run code<kbd>Ctrl ↵</kbd></button>
+      <button data-action="format"><svg class="i"><use href="#i-format"/></svg>Format code<kbd>⇧ Alt F</kbd></button>
+    </div>
 
-    <!-- 1. Curated Challenges Modal -->
-    <div class="modal-overlay hidden" id="modal-challenges">
-      <div class="modal-card modal-large">
-        <div class="modal-header">
-          <div class="modal-title-group">
-            <div class="icon-box icon-cyan">
-              <i data-lucide="book-open"></i>
-            </div>
-            <div>
-              <h3>Curated Buggy Code Challenges</h3>
-              <p class="modal-subtitle">Test CodeDoctor AI across various common Python bug patterns</p>
-            </div>
-          </div>
-          <button type="button" class="btn-close-modal" data-close-modal="modal-challenges">
-            <i data-lucide="x"></i>
+    <div class="challenge" title="Click to cycle next challenge">
+      <div class="challenge-top"><span id="challengeNum">Challenge 01</span><span id="challengeDiff">Easy</span></div>
+      <div class="challenge-title" id="challengeTitle">Two Sum</div>
+      <div class="segs" id="segs"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="challenge-foot" id="challengeFoot">Click to switch challenge</div>
+    </div>
+  </aside>
+
+  <!-- ============ WORKBENCH ============ -->
+  <main class="workbench">
+    <div class="editor-bar">
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <button class="icon-btn" data-action="new-file" aria-label="New file"><svg class="i"><use href="#i-plus"/></svg></button>
+
+      <div class="editor-actions">
+        <div class="run">
+          <button id="runBtn" data-action="run">
+            <svg class="i i--solid run-ico"><use href="#i-play"/></svg><span class="spin"></span>
+            <span id="runLabel">Run</span><kbd>Ctrl ↵</kbd>
           </button>
-        </div>
-
-        <div class="modal-body modal-scrollable" id="challenges-list">
-          <!-- Populated dynamically by script.js -->
+          <button class="run-more" aria-label="Run options"><svg class="i"><use href="#i-chev"/></svg></button>
         </div>
       </div>
     </div>
 
-    <!-- 2. Session History Modal -->
-    <div class="modal-overlay hidden" id="modal-history">
-      <div class="modal-card modal-large">
-        <div class="modal-header">
-          <div class="modal-title-group">
-            <div class="icon-box icon-purple">
-              <i data-lucide="history"></i>
-            </div>
-            <div>
-              <h3>Diagnosis Session History</h3>
-              <p class="modal-subtitle">SQLite persistent record of past executions and AI diagnoses</p>
-            </div>
-          </div>
-          <button type="button" class="btn-close-modal" data-close-modal="modal-history">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-
-        <div class="modal-search-bar">
-          <div class="search-input-wrapper">
-            <i data-lucide="search" class="search-icon"></i>
-            <input type="text" id="history-search-input" placeholder="Search sessions by problem, code, or diagnosis..." />
-          </div>
-        </div>
-
-        <div class="modal-body modal-scrollable" id="history-items-container">
-          <div class="empty-history-notice" id="history-empty-notice">
-            <i data-lucide="history" class="empty-icon"></i>
-            <p>No diagnosis sessions recorded yet.</p>
-            <span class="text-muted">Run code and diagnose with CodeDoctor AI to save records automatically.</span>
-          </div>
-          <div class="history-list" id="history-list"></div>
+    <div class="editor-scroll" id="editorScroll">
+      <div class="editor">
+        <div class="gutter" id="gutter" aria-hidden="true"></div>
+        <div class="code-wrap">
+          <div class="curline" id="curline"></div>
+          <pre class="code-layer" id="layer" aria-hidden="true"></pre>
+          <textarea class="code-input" id="code" wrap="off" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code editor"></textarea>
         </div>
       </div>
     </div>
 
-    <!-- 3. Settings Modal -->
-    <div class="modal-overlay hidden" id="modal-settings">
-      <div class="modal-card">
-        <div class="modal-header">
-          <div class="modal-title-group">
-            <div class="icon-box icon-indigo">
-              <i data-lucide="settings"></i>
-            </div>
-            <div>
-              <h3>AI Engine & Execution Settings</h3>
-              <p class="modal-subtitle">Configure Groq API key, model choice, and sandbox limits</p>
-            </div>
-          </div>
-          <button type="button" class="btn-close-modal" data-close-modal="modal-settings">
-            <i data-lucide="x"></i>
-          </button>
+    <section class="console" id="console" aria-label="Console">
+      <div class="console-bar">
+        <div class="console-tabs" role="tablist">
+          <button class="ctab is-active" role="tab" data-cp="terminal"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
+          <button class="ctab" role="tab" data-cp="output"><svg class="i"><use href="#i-output"/></svg>Output</button>
+          <button class="ctab" role="tab" data-cp="problems"><svg class="i"><use href="#i-alert"/></svg>Problems<span class="badge" id="probBadge" hidden>0</span></button>
+          <button class="ctab" role="tab" data-cp="history"><svg class="i"><use href="#i-book"/></svg>History</button>
         </div>
-
-        <form id="settings-form" class="modal-body space-y-4">
-          <!-- Backend API Base URL -->
-          <div class="form-group">
-            <label for="setting-backend-url" class="form-label">
-              <span>Backend API Base URL</span>
-            </label>
-            <input
-              type="text"
-              id="setting-backend-url"
-              class="form-input font-mono"
-              placeholder="e.g. http://localhost:8000 or http://localhost:3000 (leave blank for auto-detect)"
-            />
-            <span class="form-hint">FastAPI (port 8000) or Express (port 3000). Leave blank to auto-detect.</span>
-          </div>
-
-          <!-- Groq API Key -->
-          <div class="form-group">
-            <label for="setting-groq-key" class="form-label">
-              <span>Groq API Key</span>
-              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="link-external">
-                <span>Get Free Key</span>
-                <i data-lucide="external-link"></i>
-              </a>
-            </label>
-            <div class="input-password-wrapper">
-              <input
-                type="password"
-                id="setting-groq-key"
-                class="form-input font-mono"
-                placeholder="gsk_..."
-              />
-              <button type="button" class="btn-toggle-eye" id="btn-toggle-groq-eye">
-                <i data-lucide="eye" id="icon-groq-eye"></i>
-              </button>
-            </div>
-            <span class="form-hint">Stored safely in your local browser storage. Never transmitted to third parties.</span>
-          </div>
-
-          <!-- AI Model Selection -->
-          <div class="form-group">
-            <label for="setting-model-select" class="form-label">AI Diagnosis Model</label>
-            <select id="setting-model-select" class="form-select">
-              <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (Recommended: High performance code analysis & fixes)</option>
-              <option value="openai/gpt-oss-120b">GPT OSS 120B (Large reasoning model for complex debugging)</option>
-              <option value="openai/gpt-oss-20b">GPT OSS 20B (Fast response for instant hints)</option>
-              <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Meta Llama 3.3)</option>
-              <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Meta Llama 3.1)</option>
-              <option value="gemini-3.8-flash">Gemini 3.8 Flash (AI Studio fallback)</option>
-            </select>
-          </div>
-
-          <!-- Timeout Slider -->
-          <div class="form-group">
-            <div class="slider-label-row">
-              <label for="setting-timeout" class="form-label">Sandbox Execution Timeout</label>
-              <span class="font-mono text-cyan" id="timeout-display-val">5s</span>
-            </div>
-            <input
-              type="range"
-              id="setting-timeout"
-              min="2"
-              max="15"
-              step="1"
-              value="5"
-              class="form-range"
-            />
-            <span class="form-hint">Terminates infinite loops or prolonged scripts after this duration.</span>
-          </div>
-
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-close-modal="modal-settings">Cancel</button>
-            <button type="submit" class="btn btn-primary" id="btn-save-settings">
-              <i data-lucide="check"></i>
-              <span>Save Changes</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- 4. Help & Architecture Modal -->
-    <div class="modal-overlay hidden" id="modal-help">
-      <div class="modal-card modal-large">
-        <div class="modal-header">
-          <div class="modal-title-group">
-            <div class="icon-box icon-indigo">
-              <i data-lucide="help-circle"></i>
-            </div>
-            <div>
-              <h3>CodeDoctor AI Guide & Architecture</h3>
-              <p class="modal-subtitle">Understanding AI Modes, Execution Sandboxing, and Debugging Workflow</p>
-            </div>
-          </div>
-          <button type="button" class="btn-close-modal" data-close-modal="modal-help">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-
-        <div class="modal-body modal-scrollable guide-content">
-          <div class="guide-section">
-            <h4 class="guide-heading">
-              <i data-lucide="sparkles" class="text-purple"></i>
-              <span>Two Core AI Diagnosis Modes</span>
-            </h4>
-            <div class="guide-grid">
-              <div class="guide-card card-purple">
-                <div class="card-top">
-                  <i data-lucide="code-2" class="text-purple"></i>
-                  <strong>Mode A: Complete Answer Mode</strong>
-                </div>
-                <p>Designed when you need the complete fix immediately. Identifies the root cause, categorizes bugs (Off-by-one, ZeroDivision, Recursion, Syntax), generates the complete corrected code with a 1-click <strong>Apply to Editor</strong> button, and provides edge-case test cases.</p>
-              </div>
-
-              <div class="guide-card card-amber">
-                <div class="card-top">
-                  <i data-lucide="lightbulb" class="text-amber"></i>
-                  <strong>Mode B: Logic Suggestion Mode</strong>
-                </div>
-                <p>Socratic mentoring mode. <strong>Strictly prohibits revealing the full solution code</strong>. Instead, it guides you with mental models, logical hints, guiding questions, and step-by-step reasoning so you can solve the bug independently.</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="guide-section">
-            <h4 class="guide-heading">
-              <i data-lucide="shield-check" class="text-emerald"></i>
-              <span>Execution Sandbox & Safety</span>
-            </h4>
-            <div class="guide-info-box">
-              <p>User scripts run in an isolated subprocess with active timeout detection (2–15s configurable), standard input stream piping, and microsecond execution time measurements. Standard Python libraries are supported.</p>
-            </div>
-          </div>
-
-          <div class="guide-section">
-            <h4 class="guide-heading">
-              <i data-lucide="terminal" class="text-cyan"></i>
-              <span>Keyboard Shortcuts</span>
-            </h4>
-            <div class="shortcuts-table">
-              <div class="shortcut-row">
-                <span class="keys"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> (or <kbd>Cmd</kbd> + <kbd>Enter</kbd>)</span>
-                <span class="desc">Execute code in sandbox</span>
-              </div>
-              <div class="shortcut-row">
-                <span class="keys"><kbd>Esc</kbd></span>
-                <span class="desc">Close any open modal</span>
-              </div>
-            </div>
-          </div>
+        <div class="console-tools">
+          <button class="icon-btn icon-btn--sm" data-action="focus-term" aria-label="New terminal"><svg class="i"><use href="#i-plus"/></svg></button>
+          <button class="icon-btn icon-btn--sm" data-action="clear-term" aria-label="Clear terminal"><svg class="i"><use href="#i-trash"/></svg></button>
+          <button class="icon-btn icon-btn--sm" data-action="toggle-console" aria-label="Expand panel"><svg class="i"><use href="#i-expand"/></svg></button>
         </div>
       </div>
+      <div class="console-body" id="consoleBody">
+        <div class="cpane is-active" id="cp-terminal">
+          <div id="termLog"></div>
+          <label class="term-in">
+            <span class="prompt">sandbox@py310 ~/codedoctor $</span>
+            <input id="termIn" type="text" spellcheck="false" autocomplete="off" aria-label="Terminal input">
+          </label>
+        </div>
+        <div class="cpane" id="cp-output"></div>
+        <div class="cpane" id="cp-problems"></div>
+        <div class="cpane" id="cp-history"><div id="historyList"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ DOCTOR PANEL ============ -->
+  <aside class="doctor" aria-label="AI assistant">
+    <div class="doctor-head">
+      <div class="doctor-title"><svg class="i"><use href="#i-spark"/></svg>Doctor</div>
+      <span class="reading"><span class="dot dot--ok"></span>Reading <span id="readName">solution.py</span></span>
     </div>
 
-    <!-- Notification Toast -->
-    <div class="toast-container" id="toast-container"></div>
+    <div class="mode" role="tablist" aria-label="Answer mode">
+      <button class="is-active" role="tab" data-mode="complete" aria-selected="true"><svg class="i"><use href="#i-code"/></svg>Complete Answer</button>
+      <button role="tab" data-mode="logic" aria-selected="false"><svg class="i"><use href="#i-bulb"/></svg>Logic Suggestion</button>
+    </div>
+    <p class="mode-desc" id="modeDesc">Finds the bug and hands you corrected code.</p>
 
-  </div>
+    <div class="chat" id="chat" aria-live="polite">
+      <header>
+        <h2 class="verdict" id="verdict"></h2>
+        <p class="verdict-sub" id="verdictSub"></p>
+      </header>
+      <div id="diagnosis"></div>
+      <div class="thread" id="thread"></div>
+    </div>
 
-  <!-- Separate JavaScript File -->
-  <script src="script.js"></script>
+    <div class="composer">
+      <div class="chips">
+        <button class="chip" data-chip="Find bugs & root cause"><svg class="i"><use href="#i-bug"/></svg>Find bugs &amp; root cause</button>
+        <button class="chip" data-chip="Provide corrected code"><svg class="i"><use href="#i-wrench"/></svg>Provide corrected code</button>
+        <button class="chip" data-chip="Suggest better logic"><svg class="i"><use href="#i-bolt"/></svg>Suggest better logic</button>
+        <button class="chip" data-chip="Explain the concept"><svg class="i"><use href="#i-book"/></svg>Explain the concept</button>
+      </div>
+      <div class="composer-box">
+        <textarea id="ask" rows="1" placeholder="Ask about your code…" aria-label="Ask about your code"></textarea>
+        <button class="send" id="send" aria-label="Send" disabled><svg class="i"><use href="#i-send"/></svg></button>
+      </div>
+      <div class="composer-meta">
+        <span class="ctx"><svg class="i"><use href="#i-file"/></svg><span id="ctxName">solution.py</span> · <span id="ctxLines">9</span> lines</span>
+        <span>Enter to send</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ STATUS BAR ============ -->
+  <footer class="statusbar">
+    <span class="st-item"><span class="dot dot--ok"></span>Ready</span>
+    <span class="st-item" id="stIssues"></span>
+    <span class="spacer"></span>
+    <span>Ln <b id="ln">1</b>, Col <b id="col">1</b></span>
+    <span>Spaces: <b>4</b></span>
+    <span>UTF-8</span>
+    <span id="stEnv">Python 3.10 Sandbox</span>
+  </footer>
+</div>
+
+<script src="script.js?v=20261123"></script>
 </body>
 </html>
-
