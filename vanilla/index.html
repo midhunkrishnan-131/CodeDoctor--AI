@@ -1396,34 +1396,47 @@ body.view-workspace #home {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
-  padding: 48px 20px 28px;
+  padding: clamp(20px, 4vh, 40px) clamp(16px, 3vw, 32px) clamp(20px, 3vh, 32px);
   position: relative;
   overflow: auto;
+}
+
+.home-content {
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(16px, 2.5vh, 28px);
+  min-width: 0;
 }
 
 .home-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  margin-top: 4vh;
+  gap: clamp(12px, 2vh, 18px);
+  margin-top: clamp(4px, 2vh, 24px);
   text-align: center;
+  width: 100%;
 }
 
 .home-hero-mark {
-  width: 64px;
-  height: 64px;
+  width: clamp(52px, 6vw, 64px);
+  height: clamp(52px, 6vw, 64px);
   border-radius: 999px;
   background: #f4f4f4;
   color: #111;
   display: grid;
   place-items: center;
+  flex: none;
   animation: home-breathe 4.5s ease-in-out infinite;
 }
 
-.home-hero-mark .i { width: 28px; height: 28px; stroke-width: 2; }
+.home-hero-mark .i { width: clamp(22px, 2.5vw, 28px); height: clamp(22px, 2.5vw, 28px); stroke-width: 2; }
 
 @keyframes home-breathe {
   0%, 100% { transform: translateY(0); opacity: 1; }
@@ -1436,18 +1449,19 @@ body.view-workspace #home {
 }
 
 .home-heading {
-  font: 500 clamp(1.35rem, 2.4vw, 1.75rem)/1.25 var(--sans);
+  font: 500 clamp(1.2rem, 2.2vw + 0.4rem, 1.75rem)/1.25 var(--sans);
   letter-spacing: -0.02em;
   color: var(--home-tx);
+  max-width: 100%;
+  padding-inline: 8px;
+  overflow-wrap: anywhere;
 }
 
 .home-prompt-wrap {
   position: relative;
-  left: auto;
-  bottom: auto;
-  transform: none;
-  width: min(760px, calc(100% - 32px));
-  margin: 28px auto 8px;
+  width: 100%;
+  margin: 0;
+  min-width: 0;
 }
 
 .home-prompt {
@@ -1484,9 +1498,10 @@ body.view-workspace #home {
   align-items: center;
   gap: 6px;
   min-height: 36px;
+  min-width: 0;
 }
 
-.home-prompt-bar .spacer { flex: 1; }
+.home-prompt-bar .spacer { flex: 1 1 auto; min-width: 8px; }
 
 .home-chip,
 .home-mode-btn,
@@ -1501,6 +1516,8 @@ body.view-workspace #home {
   font: 500 12px var(--sans);
   padding: 0 10px;
   border: 1px solid transparent;
+  flex: none;
+  max-width: 100%;
 }
 
 .home-attach-btn,
@@ -1616,25 +1633,33 @@ body.view-workspace #home {
   gap: 6px;
   flex: 1;
   min-width: 0;
+  flex-wrap: wrap;
+}
+
+.home-chip .chip-label {
+  max-width: min(180px, 36vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
   .home-top-center { display: none; }
   .home-folder span { display: none; }
-  .home-hero { margin-top: -4vh; gap: 14px; }
-  .home-hero-mark { width: 56px; height: 56px; }
-  .home-prompt-wrap {
-    width: calc(100% - 20px);
-    bottom: max(16px, env(safe-area-inset-bottom, 0px) + 12px);
-  }
-  .home-chip .chip-label { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .home-ws { font-size: 12.5px; }
+  .home-hero { margin-top: 0; }
+  .home-prompt textarea { font-size: 16px; min-height: 48px; }
+  .home-prompt-controls { flex-wrap: nowrap; }
   .home-attach-btn,
   .home-send-btn,
   .home-icon-btn,
   .home-mode-btn,
   .home-chip { min-height: 40px; }
   .home-attach-btn,
-  .home-send-btn { width: 40px; height: 40px; }
+  .home-send-btn { width: 40px; height: 40px; flex: none; }
+  .home-mode-btn { padding: 0 8px; }
+  .home-chip { min-width: 0; flex: 1 1 auto; max-width: none; }
+  .home-chip .chip-label { max-width: none; width: 100%; }
 }
   
 /* ===========================================================
@@ -1660,9 +1685,13 @@ body.app-shell {
   display: grid;
   grid-template-columns: var(--shell-side) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
   height: 100vh;
-  width: 100vw;
+  width: 100%;
+  max-width: 100vw;
   background: var(--shell-bg);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 #appShell.has-banner {
@@ -1738,19 +1767,37 @@ body.app-shell {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 18px;
+  padding: 0 clamp(12px, 2vw, 18px);
   border-bottom: 1px solid var(--shell-line);
+  min-width: 0;
 }
 .shell-header h1 {
   font: 500 15px var(--sans);
   color: var(--shell-tx);
   letter-spacing: -0.01em;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.shell-header .spacer { flex: 1; }
+.shell-header .spacer { flex: 1 1 auto; min-width: 8px; }
+.shell-header #shellModelBtn {
+  max-width: min(240px, 42vw);
+  overflow: hidden;
+}
+.shell-header #shellModelBtn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .shell-mobile-toggle {
   display: none;
   width: 36px; height: 36px; border-radius: 8px;
   place-items: center; color: var(--shell-muted);
+  flex: none;
+  border: 0;
+  background: transparent;
 }
 
 .shell-pages {
@@ -1804,13 +1851,15 @@ body.app-shell {
 #workspaceApp[hidden] { display: none !important; }
 
 .feature-page {
-  padding: 28px 28px 40px;
+  padding: clamp(20px, 3vh, 32px) clamp(16px, 3vw, 32px) clamp(28px, 4vh, 48px);
   max-width: 960px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
+  min-width: 0;
 }
 .feature-page h2 {
-  font: 500 22px/1.25 var(--sans);
+  font: 500 clamp(1.2rem, 1.5vw + 0.6rem, 1.4rem)/1.25 var(--sans);
   letter-spacing: -0.02em;
   margin-bottom: 8px;
 }
@@ -1837,6 +1886,9 @@ body.app-shell {
   width: 100%;
   color: var(--shell-tx);
   cursor: pointer;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 56px;
 }
 .feature-row:hover { border-color: #3a3a3a; background: #1a1a1a; }
 .feature-row .meta { flex: 1; min-width: 0; }
@@ -1882,54 +1934,83 @@ body.app-shell {
   cursor: pointer;
 }
 .home-quick {
-  display: flex; flex-wrap: wrap; gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
-  margin-top: 18px;
+  align-items: stretch;
+  margin-top: 16px;
+  width: 100%;
 }
 .home-quick a, .home-quick button {
   border: 1px solid var(--shell-line);
   background: rgba(255,255,255,.03);
   color: var(--shell-muted);
   border-radius: 999px;
-  padding: 8px 12px;
-  font: 500 12px var(--sans);
+  height: 36px;
+  padding: 0 14px;
+  font: 500 12.5px var(--sans);
   text-decoration: none;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 .home-quick a:hover, .home-quick button:hover { color: var(--shell-tx); background: rgba(255,255,255,.06); }
 .home-sections {
-  width: min(760px, calc(100% - 32px));
-  margin: 0 auto 24px;
+  width: 100%;
+  margin: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 3vw, 28px);
+  align-items: start;
+}
+.home-block {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .home-block h3 {
   font: 500 12px var(--sans);
   color: var(--shell-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  margin: 0 0 10px;
+  min-height: 1.2em;
 }
 .home-block button, .home-block a {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 10px 0;
+  padding: 12px 0;
   border: 0;
   border-bottom: 1px solid var(--shell-line);
   background: transparent;
   color: var(--shell-tx);
-  font: 500 13px var(--sans);
+  font: 500 13px/1.35 var(--sans);
   cursor: pointer;
   text-decoration: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .home-block button:last-child, .home-block a:last-child { border-bottom: 0; }
 .home-block button span, .home-block a span { display: block; color: var(--shell-muted); font: 400 12px var(--sans); margin-top: 2px; }
 
-.settings-grid { display: grid; gap: 14px; max-width: 520px; }
+.settings-grid { display: grid; gap: 14px; max-width: 520px; width: 100%; }
 .settings-field label { display: block; font: 500 12px var(--sans); color: var(--shell-muted); margin-bottom: 6px; }
-.doctor-page-wrap { display: flex; flex-direction: column; height: 100%; max-width: 820px; width: 100%; margin: 0 auto; padding: 20px; }
+.doctor-page-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(16px, 2.5vw, 24px);
+  box-sizing: border-box;
+  min-width: 0;
+}
 .doctor-page-wrap .thread-box {
   flex: 1; min-height: 240px; overflow: auto;
   border: 1px solid var(--shell-line); border-radius: 14px;
@@ -1940,13 +2021,51 @@ body.app-shell {
   background: #121212; padding: 16px; min-height: 120px; color: var(--shell-tx);
 }
 
-@media (max-width: 900px) {
-  #appShell { grid-template-columns: 1fr; }
-  .shell-nav {
-    position: fixed; inset: 0 auto 0 0; width: min(260px, 84vw);
-    z-index: 60; transform: translateX(-105%); transition: transform 0.2s ease;
-    grid-row: auto;
+/* Shared responsive shell — tablet & mobile */
+@media (max-width: 1023px) {
+  .home-content { max-width: 880px; }
+  .home-sections { gap: 20px; }
+  .shell-header { padding: 0 14px; gap: 10px; }
+  #shellModelBtn span {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
   }
+}
+
+@media (max-width: 900px) {
+  #appShell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shell-nav {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(260px, 84vw);
+    z-index: 60;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    grid-row: auto;
+    align-items: stretch;
+    padding: 14px 12px;
+  }
+  .shell-brand {
+    justify-content: flex-start;
+    padding: 8px 10px 16px;
+  }
+  .shell-brand span:not(.mark) { display: inline; }
+  .shell-nav-btn {
+    width: 100%;
+    height: auto;
+    padding: 10px 12px;
+    justify-content: flex-start;
+    font-size: 13px;
+    line-height: 1.2;
+    overflow: visible;
+  }
+  .shell-nav-btn.is-active::before { left: 0; }
+  .shell-nav-foot { display: block; }
   body.nav-open .shell-nav { transform: none; }
   .shell-nav-backdrop {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 55;
@@ -1957,6 +2076,41 @@ body.app-shell {
   .shell-mobile-toggle { display: grid; }
   .home-sections { grid-template-columns: 1fr; }
   .feature-page { padding: 20px 16px 32px; }
+}
+
+@media (max-width: 767px) {
+  .home-quick {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .home-quick a, .home-quick button {
+    width: 100%;
+    height: 40px;
+    white-space: normal;
+    text-align: center;
+    padding: 0 10px;
+  }
+  .home-top {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .home-top-left { gap: 4px; }
+  .shell-header h1 {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 40vw;
+  }
+  .doctor-page-wrap .thread-box { min-height: 180px; }
+}
+
+@media (max-width: 479px) {
+  .home-quick { grid-template-columns: 1fr; }
+  .home-folder { display: none; }
+  .home-ws span,
+  .home-ws { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 }
 
   
@@ -1979,7 +2133,7 @@ body.app-shell {
   --ws-toolbar: 48px;
 }
 
-/* Global icon rail */
+/* Shared shell tokens */
 body.app-shell {
   --shell-side: var(--ws-rail);
   --shell-bg: var(--ws-bg);
@@ -1991,50 +2145,61 @@ body.app-shell {
   background: var(--ws-bg);
 }
 
-.shell-nav {
-  width: var(--ws-rail);
-  padding: 10px 8px;
-  align-items: center;
-  gap: 6px;
+/* Desktop/laptop icon rail — scoped so mobile drawer styles still win */
+@media (min-width: 901px) {
+  .shell-nav {
+    width: var(--ws-rail);
+    padding: 10px 8px;
+    align-items: center;
+    gap: 6px;
+  }
+  .shell-brand {
+    justify-content: center;
+    padding: 8px 0 14px;
+  }
+  .shell-brand span:not(.mark) { display: none; }
+  .shell-nav-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 12px;
+    position: relative;
+    font-size: 0;
+    line-height: 0;
+    overflow: hidden;
+  }
+  .shell-nav-btn .i {
+    width: 16px;
+    height: 16px;
+  }
+  .shell-nav-btn.is-active {
+    background: rgba(212,255,69,.10);
+    color: var(--ws-accent);
+  }
+  .shell-nav-btn.is-active::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--ws-accent);
+  }
+  .shell-nav-foot { display: none; }
 }
-.shell-brand {
-  justify-content: center;
-  padding: 8px 0 14px;
-}
-.shell-brand span:not(.mark) { display: none; }
-.shell-nav-btn {
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  justify-content: center;
-  border-radius: 12px;
-  position: relative;
-  font-size: 0;
-  line-height: 0;
-  overflow: hidden;
-}
-.shell-nav-btn .i {
-  width: 16px;
-  height: 16px;
-}
-.shell-nav-btn.is-active {
-  background: rgba(212,255,69,.10);
-  color: var(--ws-accent);
-}
-.shell-nav-btn.is-active::before {
-  content: "";
-  position: absolute;
-  left: -8px;
-  top: 10px;
-  bottom: 10px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--ws-accent);
-}
-.shell-nav-foot { display: none; }
-.shell-nav-btn[title] { }
 
+/* One header per page: Home uses home-top; Workspace uses its toolbar */
+body[data-page="home"] .shell-header,
 body[data-page="workspace"] .shell-header { display: none; }
+
+body[data-page="home"] #page-home .home-top {
+  border-bottom: 1px solid var(--shell-line);
+  background: var(--shell-bg);
+  padding-inline: clamp(12px, 2vw, 18px);
+}
+
 body[data-page="workspace"] .shell-main {
   background: var(--ws-bg);
   min-height: 0;
@@ -2043,6 +2208,17 @@ body[data-page="workspace"] #shellPages {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+}
+
+/* Feature pages share a consistent content column */
+body[data-page="learn"] .shell-pages,
+body[data-page="challenges"] .shell-pages,
+body[data-page="history"] .shell-pages,
+body[data-page="templates"] .shell-pages,
+body[data-page="snippets"] .shell-pages,
+body[data-page="settings"] .shell-pages,
+body[data-page="doctor"] .shell-pages {
+  overflow: auto;
 }
 
 #page-workspace {
@@ -2091,6 +2267,15 @@ body[data-page="workspace"] #shellPages {
   background: var(--ws-surface);
   border-bottom: 1px solid var(--ws-line);
   min-width: 0;
+}
+#workspaceApp .ws-menu-btn {
+  display: none;
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+@media (max-width: 900px) {
+  #workspaceApp .ws-menu-btn { display: grid; }
 }
 #workspaceApp .nav { display: none !important; }
 #workspaceApp .brand-name { font-size: 13px; }
@@ -2654,6 +2839,7 @@ body[data-page="workspace"] #shellPages {
 <div id="home" class="page-home-inner" aria-label="CodeDoctor home">
   <header class="home-top">
     <div class="home-top-left">
+      <button type="button" class="shell-mobile-toggle" id="homeMenuBtn" aria-label="Open menu"><svg class="i"><use href="#i-more"/></svg></button>
       <button type="button" class="home-logo" id="homeLogoBtn" aria-label="CodeDoctor AI" data-route="workspace">
         <svg class="i"><use href="#i-pulse"/></svg>
       </button>
@@ -2690,71 +2876,73 @@ body[data-page="workspace"] #shellPages {
   </header>
 
   <div class="home-main">
-    <div class="home-hero">
-      <div class="home-hero-mark" aria-hidden="true">
-        <svg class="i"><use href="#i-pulse"/></svg>
-      </div>
-      <h1 class="home-heading">What are we coding today?</h1>
-    </div>
-
-    <div class="home-prompt-wrap">
-      <form class="home-prompt" id="homePromptForm" autocomplete="off">
-        <div class="home-attach-list" id="homeAttachList" hidden></div>
-        <textarea id="homePrompt" rows="2" placeholder="Ask anything... describe what you want to create, fix or learn." aria-label="Ask CodeDoctor"></textarea>
-        <div class="home-prompt-bar">
-          <div class="home-prompt-controls">
-            <button type="button" class="home-attach-btn" id="homeAttachBtn" aria-label="Attach files">
-              <svg class="i"><use href="#i-plus"/></svg>
-            </button>
-            <input type="file" id="homeFileInput" hidden multiple accept=".py,.txt,.md,.js,.ts,.html,.css,.json,.csv">
-
-            <button type="button" class="home-mode-btn" id="homeModeBtn" aria-haspopup="listbox" aria-expanded="false">
-              <span id="homeModeLabel">Create</span>
-              <svg class="i"><use href="#i-chev"/></svg>
-            </button>
-            <div class="home-mode-menu" id="homeModeMenu" hidden role="listbox">
-              <button type="button" role="option" data-home-mode="create" aria-selected="true">Create</button>
-              <button type="button" role="option" data-home-mode="fix" aria-selected="false">Fix</button>
-              <button type="button" role="option" data-home-mode="learn" aria-selected="false">Learn</button>
-            </div>
-
-            <button type="button" class="home-chip" id="homeModelBtn" aria-haspopup="listbox" aria-expanded="false">
-              <span class="chip-label" id="homeModelLabel">openai/gpt-oss-120b</span>
-              <svg class="i"><use href="#i-chev"/></svg>
-            </button>
-            <div class="home-model-menu" id="homeModelMenu" hidden role="listbox">
-              <button type="button" role="option" data-home-model="openai/gpt-oss-120b" aria-selected="true">openai/gpt-oss-120b</button>
-              <button type="button" role="option" data-home-model="openai/gpt-oss-20b" aria-selected="false">openai/gpt-oss-20b</button>
-              <button type="button" role="option" data-home-model="qwen/qwen3.8-27b" aria-selected="false">qwen/qwen3.8-27b</button>
-            </div>
-
-            <span class="spacer"></span>
-            <button type="submit" class="home-send-btn" id="homeSendBtn" aria-label="Send" disabled>
-              <svg class="i"><use href="#i-arrow-up"/></svg>
-            </button>
-          </div>
+    <div class="home-content">
+      <div class="home-hero">
+        <div class="home-hero-mark" aria-hidden="true">
+          <svg class="i"><use href="#i-pulse"/></svg>
         </div>
-      </form>
-      <p class="home-hint">Enter to send · Shift+Enter for a new line</p>
-      <div class="home-quick">
-        <button type="button" data-route="workspace">Open Workspace</button>
-        <button type="button" data-route="learn">Learn Python</button>
-        <button type="button" data-route="challenges">Challenges</button>
-        <button type="button" data-route="doctor">Ask Doctor</button>
+        <h1 class="home-heading">What are we coding today?</h1>
       </div>
-    </div>
-    <div class="home-sections">
-      <div class="home-block">
-        <h3>Suggested learning</h3>
-        <button type="button" data-learn-topic="variables">Variables &amp; types<span>Python basics</span></button>
-        <button type="button" data-learn-topic="loops">Loops<span>for / while</span></button>
-        <button type="button" data-learn-topic="functions">Functions<span>def, return, args</span></button>
+
+      <div class="home-prompt-wrap">
+        <form class="home-prompt" id="homePromptForm" autocomplete="off">
+          <div class="home-attach-list" id="homeAttachList" hidden></div>
+          <textarea id="homePrompt" rows="2" placeholder="Ask anything... describe what you want to create, fix or learn." aria-label="Ask CodeDoctor"></textarea>
+          <div class="home-prompt-bar">
+            <div class="home-prompt-controls">
+              <button type="button" class="home-attach-btn" id="homeAttachBtn" aria-label="Attach files">
+                <svg class="i"><use href="#i-plus"/></svg>
+              </button>
+              <input type="file" id="homeFileInput" hidden multiple accept=".py,.txt,.md,.js,.ts,.html,.css,.json,.csv">
+
+              <button type="button" class="home-mode-btn" id="homeModeBtn" aria-haspopup="listbox" aria-expanded="false">
+                <span id="homeModeLabel">Create</span>
+                <svg class="i"><use href="#i-chev"/></svg>
+              </button>
+              <div class="home-mode-menu" id="homeModeMenu" hidden role="listbox">
+                <button type="button" role="option" data-home-mode="create" aria-selected="true">Create</button>
+                <button type="button" role="option" data-home-mode="fix" aria-selected="false">Fix</button>
+                <button type="button" role="option" data-home-mode="learn" aria-selected="false">Learn</button>
+              </div>
+
+              <button type="button" class="home-chip" id="homeModelBtn" aria-haspopup="listbox" aria-expanded="false">
+                <span class="chip-label" id="homeModelLabel">openai/gpt-oss-120b</span>
+                <svg class="i"><use href="#i-chev"/></svg>
+              </button>
+              <div class="home-model-menu" id="homeModelMenu" hidden role="listbox">
+                <button type="button" role="option" data-home-model="openai/gpt-oss-120b" aria-selected="true">openai/gpt-oss-120b</button>
+                <button type="button" role="option" data-home-model="openai/gpt-oss-20b" aria-selected="false">openai/gpt-oss-20b</button>
+                <button type="button" role="option" data-home-model="qwen/qwen3.8-27b" aria-selected="false">qwen/qwen3.8-27b</button>
+              </div>
+
+              <span class="spacer"></span>
+              <button type="submit" class="home-send-btn" id="homeSendBtn" aria-label="Send" disabled>
+                <svg class="i"><use href="#i-arrow-up"/></svg>
+              </button>
+            </div>
+          </div>
+        </form>
+        <p class="home-hint">Enter to send · Shift+Enter for a new line</p>
+        <div class="home-quick">
+          <button type="button" data-route="workspace">Open Workspace</button>
+          <button type="button" data-route="learn">Learn Python</button>
+          <button type="button" data-route="challenges">Challenges</button>
+          <button type="button" data-route="doctor">Ask Doctor</button>
+        </div>
       </div>
-      <div class="home-block">
-        <h3>Quick start</h3>
-        <button type="button" data-route="challenges">Two Sum challenge<span>Practice algorithms</span></button>
-        <button type="button" data-route="templates">Start from a template<span>Blank or starter</span></button>
-        <button type="button" data-route="history">Recent activity<span>Past diagnoses</span></button>
+      <div class="home-sections">
+        <div class="home-block">
+          <h3>Suggested learning</h3>
+          <button type="button" data-learn-topic="variables">Variables &amp; types<span>Python basics</span></button>
+          <button type="button" data-learn-topic="loops">Loops<span>for / while</span></button>
+          <button type="button" data-learn-topic="functions">Functions<span>def, return, args</span></button>
+        </div>
+        <div class="home-block">
+          <h3>Quick start</h3>
+          <button type="button" data-route="challenges">Two Sum challenge<span>Practice algorithms</span></button>
+          <button type="button" data-route="templates">Start from a template<span>Blank or starter</span></button>
+          <button type="button" data-route="history">Recent activity<span>Past diagnoses</span></button>
+        </div>
       </div>
     </div>
   </div>
@@ -2765,6 +2953,7 @@ body[data-page="workspace"] #shellPages {
 <div class="app" id="workspaceApp">
 
   <header class="topbar ws-toolbar">
+    <button type="button" class="shell-mobile-toggle ws-menu-btn" id="wsMenuBtn" aria-label="Open menu"><svg class="i"><use href="#i-more"/></svg></button>
     <a class="brand" href="#/home" data-route="home" aria-label="CodeDoctor AI">
       <span class="brand-mark"><svg class="i"><use href="#i-pulse"/></svg></span>
       <span class="brand-name">CodeDoctor<sup>AI</sup></span>

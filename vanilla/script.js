@@ -1988,6 +1988,8 @@ $('#doctorPageAsk')?.addEventListener('keydown', (e) => {
   }
 });
 $('#shellMenuBtn')?.addEventListener('click', () => setNavOpen(true));
+$('#homeMenuBtn')?.addEventListener('click', () => setNavOpen(true));
+$('#wsMenuBtn')?.addEventListener('click', () => setNavOpen(true));
 $('#shellNavBackdrop')?.addEventListener('click', () => setNavOpen(false));
 $('#shellModelBtn')?.addEventListener('click', () => navigate('settings'));
 
